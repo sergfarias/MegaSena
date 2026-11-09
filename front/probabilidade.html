@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Probabilidades - MegaSena SaaS</title>
+    <!-- Usa o CSS global para o menu lateral -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* CSS ESPECÍFICO DA TELA DE PROBABILIDADE */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            accent-color: var(--primary);
+        }
+
+        .dezenas-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .prob-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .prob-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+
+        .prob-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+
+        .prob-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+
+        .prob-valor {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .prob-texto {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .ev-panel {
+            background-color: rgba(255, 152, 0, 0.1);
+            border-left: 4px solid #FF9800;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+
+        .ev-panel h3 {
+            color: #FF9800;
+            margin-bottom: 10px;
+        }
+
+        .ev-panel p {
+            font-size: 0.95rem;
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        .custo-total {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            color: var(--success);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar">
+        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+        <nav>
+            <a href="index.html">🏠 Início</a>
+            <a href="fechamento.html">🎯 Fechamento</a>
+            <a href="historico.html">📜 Meus Jogos</a>
+            <a href="globo-megasena.html">🎲 Simulador Físico</a>
+            <a href="probabilidade.html" class="active">📊 Probabilidades</a>
+            <a href="verificar.html">🛡️ Auditoria</a>
+            <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
+        </nav>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="content">
+        <h1>📊 Análise de Probabilidades</h1>
+        <p style="color: #aaa; text-align: center; margin-bottom: 30px;">Entenda suas chances reais na Mega-Sena e o custo da sua aposta.</p>
+
+        <div class="panel" style="max-width: 900px; width: 100%;">
+            
+            <!-- Seletor de Dezenas -->
+            <div class="slider-container">
+                <span style="color: #ccc; font-weight: bold;">Aposta de</span>
+                <input type="range" id="dezenasRange" min="6" max="20" value="6" step="1" oninput="atualizarProbabilidade()">
+                <span class="dezenas-display" id="dezenasLabel">6</span>
+                <span style="color: #ccc; font-weight: bold;">dezenas</span>
+            </div>
+
+            <div class="custo-total" id="custoTotal">Custo: R$ 6,00</div>
+
+            <!-- Grid de Probabilidades -->
+            <div class="prob-grid">
+                <div class="prob-card" style="border-top: 4px solid var(--success);">
+                    <h3>Sena (6 acertos)</h3>
+                    <div class="prob-valor" id="probSena">1 em 50.063.860</div>
+                    <div class="prob-texto">Chance de acertar tudo</div>
+                </div>
+
+                <div class="prob-card" style="border-top: 4px solid var(--primary);">
+                    <h3>Quina (5 acertos)</h3>
+                    <div class="prob-valor" id="probQuina">1 em 154.518</div>
+                    <div class="prob-texto">Chance de acertar 5</div>
+                </div>
+
+                <div class="prob-card" style="border-top: 4px solid #FFEB3B;">
+                    <h3>Quadra (4 acertos)</h3>
+                    <div class="prob-valor" id="probQuadra">1 em 2.332</div>
+                    <div class="prob-texto">Chance de acertar 4</div>
+                </div>
+            </div>
+
+            <!-- Explicação do Valor Esperado (EV) -->
+            <div class="ev-panel">
+                <h3>💡 Retorno Esperado (Transparência)</h3>
+                <p>
+                    A Mega-Sena é uma loteria com expectativa negativa (a Caixa retém parte para prêmios e administração). 
+                    Na média, para cada <strong>R$ 1,00</strong> apostado, você recebe cerca de <strong id="retornoPercentual">R$ 0,43</strong> de volta.
+                </p>
+                <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">
+                    *Este é um cálculo matemático baseado no rateio histórico médio. Não significa que você vai receber exatamente esse valor, mas sim a média probabilística.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuarioNome');
+            window.location.href = 'login.html';
+        }
+
+        let debounceTimer;
+
+        async function atualizarProbabilidade() {
+            const dezenas = document.getElementById('dezenasRange').value;
+            document.getElementById('dezenasLabel').innerText = dezenas;
+
+            // Debounce para não spammar a API enquanto arrasta o slider
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    // Chama a rota da API
+                    const response = await fetch(`https://localhost:7155/api/MegaSena/probabilidade?dezenas=${dezenas}`);
+                    
+                    if (!response.ok) throw new Error("Erro ao calcular probabilidade");
+
+                    const data = await response.json();
+                    
+                    // O JSON da API (em camelCase) vem assim:
+                    // data.probSena, data.probQuina, data.probQuadra, data.custo, data.retornoPercentual
+                    
+                    // Atualiza os cards com a formatação "1 em X"
+                    document.getElementById('probSena').innerText = formatarProbabilidade(data.probSena);
+                    document.getElementById('probQuina').innerText = formatarProbabilidade(data.probQuina);
+                    document.getElementById('probQuadra').innerText = formatarProbabilidade(data.probQuadra);
+                    
+                    // Atualiza o custo
+                    document.getElementById('custoTotal').innerText = `Custo: R$ ${data.custo.toFixed(2).replace('.', ',')}`;
+
+                    // Atualiza o Retorno Esperado (EV)
+                    if (data.retornoPercentual !== null) {
+                        document.getElementById('retornoPercentual').innerText = `R$ ${data.retornoPercentual.toFixed(2).replace('.', ',')}`;
+                    } else {
+                        document.getElementById('retornoPercentual').innerText = `R$ 0,00 (Dados indisponíveis)`;
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                }
+            }, 300); // Espera 300ms após soltar o slider
+        }
+
+        // Função para transformar 0.0000000199 em "1 em 50.063.860"
+        function formatarProbabilidade(prob) {
+            if (prob <= 0) return "0%";
+            const denominador = Math.round(1 / prob);
+            return `1 em ${denominador.toLocaleString('pt-BR')}`;
+        }
+
+        // Carrega o cálculo inicial com 6 dezenas ao abrir a tela
+        window.onload = atualizarProbabilidade;
+    </script>
+</body>
+</html>

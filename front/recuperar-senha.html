@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Recuperar Senha - MegaSena SaaS</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 350px; }
+        h2 { text-align: center; color: #333; }
+        input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        button:hover { background: #45a049; }
+        .msg { padding: 10px; margin-top: 10px; border-radius: 4px; text-align: center; font-size: 14px; }
+        .msg.ok { background: #e7f3e7; color: #2e7d32; }
+        .msg.erro { background: #fdecea; color: #c62828; }
+        .link { display: block; text-align: center; margin-top: 15px; color: #4CAF50; text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Recuperar Senha</h2>
+        <p style="text-align: center; font-size: 14px; color: #666;">Informe seu e-mail cadastrado para receber o link de recuperação.</p>
+
+        <form id="formEsqueci">
+            <input type="email" id="email" placeholder="seu@email.com" required />
+            <button type="submit">Enviar link</button>
+        </form>
+
+        <!-- Formulário de reset (escondido inicialmente) -->
+        <form id="formReset" style="display: none;">
+            <input type="text" id="token" placeholder="Cole o token recebido" required />
+            <input type="password" id="novaSenha" placeholder="Nova senha (mínimo 8 caracteres)" minlength="8" required />
+            <button type="submit">Redefinir senha</button>
+        </form>
+
+        <div id="mensagem" class="msg" style="display: none;"></div>
+        <a href="login.html" class="link">← Voltar ao login</a>
+    </div>
+
+    <script>
+        const API = 'https://localhost:5001'; // Ajuste para a URL da sua API
+        const formEsqueci = document.getElementById('formEsqueci');
+        const formReset = document.getElementById('formReset');
+        const msg = document.getElementById('mensagem');
+
+        // Verifica se já veio um token na URL (?token=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('token')) {
+            document.getElementById('token').value = urlParams.get('token');
+            formEsqueci.style.display = 'none';
+            formReset.style.display = 'block';
+        }
+
+        formEsqueci.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            try {
+                const r = await fetch(`${API}/api/Auth/esqueci-senha`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await r.json();
+                exibirMensagem(data.mensagem || data.erro, r.ok);
+
+                // DEBUG: se o backend retornar o token (ambiente de teste), mostra
+                if (data.tokenDebug) {
+                    document.getElementById('token').value = data.tokenDebug;
+                    formEsqueci.style.display = 'none';
+                    formReset.style.display = 'block';
+                }
+            } catch (err) {
+                exibirMensagem('Erro de conexão com o servidor.', false);
+            }
+        });
+
+        formReset.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = document.getElementById('token').value;
+            const novaSenha = document.getElementById('novaSenha').value;
+            try {
+                const r = await fetch(`${API}/api/Auth/resetar-senha`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, novaSenha })
+                });
+                const data = await r.json();
+                exibirMensagem(data.mensagem || data.erro, r.ok);
+
+                if (r.ok) {
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                }
+            } catch (err) {
+                exibirMensagem('Erro de conexão com o servidor.', false);
+            }
+        });
+
+        function exibirMensagem(texto, ok) {
+            msg.textContent = texto;
+            msg.className = 'msg ' + (ok ? 'ok' : 'erro');
+            msg.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

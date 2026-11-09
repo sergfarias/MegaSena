@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Histórico - MegaSena SaaS</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        h1 { margin-bottom: 20px; }
+        .panel { width: 100%; max-width: 900px; }
+        
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 15px; border-bottom: 1px solid var(--border); }
+        th { color: #888; font-size: 0.9rem; text-transform: uppercase; }
+        td { font-size: 0.95rem; }
+        
+        .hash-code { 
+            font-family: monospace; font-size: 0.8rem; background: #111; 
+            padding: 6px 8px; border-radius: 4px; color: #FFEB3B; 
+            display: inline-block; word-break: break-all; max-width: 300px;
+        }
+
+        .btn-ver { 
+            background: var(--primary); color: #fff; border: none; 
+            padding: 8px 15px; border-radius: 4px; cursor: pointer; 
+            font-size: 0.85rem; font-weight: bold; transition: background 0.2s;
+        }
+        .btn-ver:hover { background: var(--primary-hover, #2ac3de); }
+        .btn-ver.expandido { background: #f7768e; }
+        .btn-ver:disabled { opacity: 0.6; cursor: wait; }
+
+        /* Linha de detalhes que aparece ao expandir */
+        .linha-detalhes {
+            background: #1e2030 !important;
+            padding: 0 !important;
+            border-bottom: 2px solid var(--primary) !important;
+        }
+        .detalhes-container {
+            padding: 20px;
+            animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; max-height: 0; }
+            to { opacity: 1; max-height: 2000px; }
+        }
+        .detalhes-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; color: #c0caf5;
+        }
+        .badge-integridade {
+            padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;
+        }
+        .badge-integridade.ok { background: #1a3a2a; color: #9ece6a; }
+        .badge-integridade.fail { background: #3a1a1a; color: #f7768e; }
+
+        /* ⬇️ NOVA ESTRUTURA DO GRID E DAS BOLINHAS ⬇️ */
+        .grid-jogos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .jogo-item {
+            background: #24283b;
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px; /* Espaço entre os números */
+        }
+        .jogo-item .num {
+            color: #7aa2f7;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-right: 2px;
+        }
+        .jogo-item .bolinha-mini {
+            background: #1a1b26;
+            color: #9ece6a;
+            border: 1px solid #414868;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: bold;
+            font-family: monospace;
+            flex-shrink: 0; /* Impede a bolinha de ser esmagada */
+        }
+        /* ⬆️ FIM DA NOVA ESTRUTURA ⬆️ */
+
+        .empty-state { 
+            text-align: center; padding: 40px; color: #888; font-size: 1rem;
+        }
+        .loading { text-align: center; padding: 15px; color: #888; }
+
+        /* ⬇️ Estilos do Backtest */
+        .backtest-box {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border);
+        }
+        .backtest-explicacao {
+            background: #1a1d29;
+            border-left: 3px solid #7aa2f7;
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            color: #888;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+        .backtest-explicacao strong { color: #7aa2f7; }
+
+        .btn-backtest {
+            background: #9ece6a;
+            color: #1a1b26;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .btn-backtest:hover { background: #b9e88a; transform: translateY(-1px); }
+        .btn-backtest:disabled { opacity: 0.6; cursor: wait; transform: none; }
+
+        .backtest-resultado { margin-top: 20px; }
+        .stat-card-backtest {
+            background: #24283b;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-card-backtest .num-grande {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #9ece6a;
+            line-height: 1.2;
+        }
+        .stat-card-backtest .label {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+        .stat-card-backtest .num-grande.custo { color: #f7768e; font-size: 1.3rem; }
+
+        .backtest-conclusao {
+            background: #1a3a2a;
+            border: 1px solid #2e5a3f;
+            padding: 15px;
+            border-radius: 6px;
+            color: #9ece6a;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        .backtest-conclusao.alerta {
+            background: #3a2e1a;
+            border-color: #5a4a2e;
+            color: #ffd166;
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 700px) {
+            .grid-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar">
+        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+        <nav>
+            <a href="index.html">🏠 Início</a>
+            <a href="fechamento.html">🎯 Fechamento</a>
+            <a href="historico.html" class="active">📜 Meus Jogos</a>
+            <a href="globo-megasena.html">🎲 Simulador Físico</a>
+            <a href="probabilidade.html">📊 Probabilidades</a>
+            <a href="estatisticas.html">🔢 Estatísticas</a>
+            <a href="comparador.html">⚖️ Comparador</a>
+            <a href="verificar.html">🛡️ Auditoria</a>
+            <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
+        </nav>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="content">
+        <h1>📜 Meu Histórico de Jogos</h1>
+        
+        <div class="panel">
+            <table id="tabelaHistorico">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Qtd. Jogos</th>
+                        <th>Hash de Auditoria</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="empty" class="empty-state" style="display: none;">
+                Você ainda não gerou nenhum fechamento.
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API = 'https://localhost:7155';
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuarioNome');
+            window.location.href = 'login.html';
+        }
+
+        const cacheJogos = {};
+
+        async function carregarHistorico() {
+            try {
+                const response = await fetch(`${API}/api/Auditoria/meus-lotes`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.status === 401) {
+                    logout();
+                    return;
+                }
+
+                const lotes = await response.json();
+                const tbody = document.querySelector('#tabelaHistorico tbody');
+                const emptyDiv = document.getElementById('empty');
+
+                if (lotes.length === 0) {
+                    document.getElementById('tabelaHistorico').style.display = 'none';
+                    emptyDiv.style.display = 'block';
+                    return;
+                }
+
+                lotes.forEach(lote => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.hash = lote.hash;
+                    tr.dataset.quantidade = lote.quantidadeJogos;
+                    tr.dataset.dataCriacao = lote.dataCriacao;
+
+                    const dataFormatada = new Date(lote.dataCriacao).toLocaleString('pt-BR');
+                    
+                    tr.innerHTML = `
+                        <td>${dataFormatada}</td>
+                        <td>${lote.quantidadeJogos}</td>
+                        <td><span class="hash-code">${lote.hash}</span></td>
+                        <td>
+                            <button class="btn-ver" onclick="toggleDetalhes(this)">Ver Jogos ▼</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (error) {
+                alert("Erro ao carregar histórico. Verifique se a API está rodando.");
+            }
+        }
+
+        async function toggleDetalhes(btn) {
+            const tr = btn.closest('tr');
+            const hash = tr.dataset.hash;
+
+            let detalhes = tr.nextElementSibling;
+            if (detalhes && detalhes.classList.contains('linha-detalhes')) {
+                detalhes.remove();
+                btn.textContent = 'Ver Jogos ▼';
+                btn.classList.remove('expandido');
+                return;
+            }
+
+            document.querySelectorAll('.linha-detalhes').forEach(l => l.remove());
+            document.querySelectorAll('.btn-ver').forEach(b => {
+                b.textContent = 'Ver Jogos ▼';
+                b.classList.remove('expandido');
+            });
+
+            const detalhesTr = document.createElement('tr');
+            detalhesTr.className = 'linha-detalhes';
+            detalhesTr.innerHTML = `<td colspan="4"><div class="loading">⏳ Carregando jogos...</div></td>`;
+            tr.after(detalhesTr);
+
+            btn.textContent = 'Ocultar ▲';
+            btn.classList.add('expandido');
+
+            if (cacheJogos[hash]) {
+                renderizarJogos(detalhesTr, cacheJogos[hash]);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API}/api/Auditoria/meus-lotes/${hash}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) { logout(); return; }
+                    throw new Error("Não foi possível carregar os jogos.");
+                }
+
+                const data = await response.json();
+                cacheJogos[hash] = data;
+                renderizarJogos(detalhesTr, data);
+
+            } catch (error) {
+                detalhesTr.innerHTML = `<td colspan="4" style="padding:20px; color:#f7768e;">❌ ${error.message}</td>`;
+            }
+        }
+
+        function renderizarJogos(tr, data) {
+            const badge = data.integridadeConfirmada 
+                ? '<span class="badge-integridade ok">✓ Integridade OK</span>'
+                : '<span class="badge-integridade fail">✗ Hash adulterado</span>';
+
+            // ⬇️ AQUI ESTÁ A MÁGICA DA NOVA FORMATAÇÃO ⬇️
+            const jogosHtml = data.jogos.map((jogo, idx) => {
+                const numerosHtml = jogo
+                    .sort((a, b) => a - b) // Garante a ordem
+                    .map(n => `<span class="bolinha-mini">${n.toString().padStart(2, '0')}</span>`)
+                    .join('');
+                return `<div class="jogo-item"><span class="num">#${idx + 1}</span>${numerosHtml}</div>`;
+            }).join('');
+
+            // Guarda os jogos no dataset da linha pra usar no backtest
+            tr.dataset.jogosJson = JSON.stringify(data.jogos);
+
+            tr.innerHTML = `
+                <td colspan="4">
+                    <div class="detalhes-container">
+                        <div class="detalhes-header">
+                            <strong>${data.quantidadeJogos} jogos neste lote</strong>
+                            ${badge}
+                        </div>
+                        <div class="grid-jogos">
+                            ${jogosHtml}
+                        </div>
+
+                        <!-- ⬇️ SEÇÃO DE BACKTEST COM EXPLICAÇÃO -->
+                        <div class="backtest-box">
+                            <div class="backtest-explicacao">
+                                <strong>🤔 O que é o Backtest?</strong><br>
+                                O backtest pega os jogos deste lote e "volta no tempo": ele testa o seu lote 
+                                contra os <strong>500 últimos resultados reais</strong> da Mega-Sena. 
+                                Assim você descobre quantas quadras, quinas e senas teria feito se já 
+                                estivesse jogando este lote nos sorteios passados. 
+                                É a forma mais honesta de ver o valor do fechamento.
+                            </div>
+                            <button class="btn-backtest" onclick="fazerBacktest(this)">
+                                📊 Rodar Backtest nos últimos 500 concursos
+                            </button>
+                            <div class="backtest-resultado" style="display: none;"></div>
+                        </div>
+                    </div>
+                </td>
+            `;
+        }
+
+        async function fazerBacktest(btn) {
+            const detalhesTr = btn.closest('.linha-detalhes');
+            const jogos = JSON.parse(detalhesTr.dataset.jogosJson);
+            const container = btn.parentElement.querySelector('.backtest-resultado');
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Rodando backtest...';
+            container.style.display = 'block';
+            container.innerHTML = '<p style="color: #888;">Verificando 500 concursos reais, aguarde...</p>';
+
+            try {
+                const response = await fetch(`${API}/api/Cobertura/backtest?janela=500`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(jogos)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.erro || "Erro no backtest");
+                }
+
+                const temPremio = data.quadras > 0 || data.quinas > 0 || data.senas > 0;
+                const conclusao = temPremio
+                    ? `<div class="backtest-conclusao">
+                        ✅ Boa notícia! Jogando este lote nos últimos ${data.janela} concursos, 
+                        você teria feito <strong>${data.quadras} quadra(s)</strong>, 
+                        <strong>${data.quinas} quina(s)</strong> e 
+                        <strong>${data.senas} sena(s)</strong>.
+                       </div>`
+                    : `<div class="backtest-conclusao alerta">
+                        ⚠️ Nos últimos ${data.janela} concursos, este lote não faria nenhuma quadra. 
+                        Isso é normal: a chance de quadra por jogo é baixa. 
+                        O importante é que o lote está <em>matematicamente garantido</em> a cobrir todas as combinações.
+                       </div>`;
+
+                container.innerHTML = `
+                    <div class="grid-stats">
+                        <div class="stat-card-backtest">
+                            <div class="num-grande">${data.quadras}</div>
+                            <div class="label">Quadras</div>
+                        </div>
+                        <div class="stat-card-backtest">
+                            <div class="num-grande">${data.quinas}</div>
+                            <div class="label">Quinas</div>
+                        </div>
+                        <div class="stat-card-backtest">
+                            <div class="num-grande">${data.senas}</div>
+                            <div class="label">Senas</div>
+                        </div>
+                        <div class="stat-card-backtest">
+                            <div class="num-grande custo">R$ ${data.custoTotal.toFixed(2)}</div>
+                            <div class="label">Custo simulado</div>
+                        </div>
+                    </div>
+                    ${conclusao}
+                    <p style="color: #666; font-size: 0.75rem; margin-top: 10px; text-align: center;">
+                        Janela analisada: ${data.janela} concursos · ${data.totalJogosLote} jogos no lote
+                    </p>
+                `;
+            } catch (err) {
+                container.innerHTML = `<p style="color: #f7768e;">❌ ${err.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📊 Rodar Backtest nos últimos 500 concursos';
+            }
+        }
+
+        carregarHistorico();
+    </script>
+</body>
+</html>

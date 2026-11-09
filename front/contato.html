@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contato - MegaSena SaaS</title>
+    <!-- CSS GLOBAL -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* CSS ESPECÍFICO DA PÁGINA DE CONTATO */
+        
+        /* Header simples para quando não estiver logado */
+        .header-publico {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 15px 30px;
+            display: none; /* Escondido por padrão, JS controla */
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+        .header-publico .logo { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+        .header-publico .btn-login-header {
+            background: var(--primary); color: #fff; text-decoration: none;
+            padding: 8px 16px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;
+        }
+
+        /* Conteúdo principal precisa de margem se o header estiver fixo */
+        body.publico .content {
+            margin-left: 0 !important;
+            margin-top: 70px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin-bottom: 10px; }
+        .subtitle { color: #888; margin-bottom: 30px; font-size: 0.95rem; text-align: center; }
+        
+        .panel { 
+            width: 100%; 
+            max-width: 800px;
+            background: var(--panel-bg);
+            padding: 30px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .grid-contato {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-contato { grid-template-columns: 1fr; }
+        }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #ccc; }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        button[type="submit"]:hover { background-color: var(--primary-hover, #2ac3de); }
+        button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Área dos botões sociais */
+        .canais-diretos {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+            border-left: 1px solid var(--border);
+            padding-left: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .canais-diretos { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 20px; }
+        }
+
+        .canais-diretos h3 {
+            color: var(--text-main);
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .btn-social {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #fff;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .btn-social:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        .btn-whatsapp { background: #25D366; color: #fff; }
+        .btn-telegram { background: #0088cc; color: #fff; }
+
+        .msg-feedback {
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .msg-feedback.sucesso { background: #1a3a2a; color: #9ece6a; border: 1px solid #2e5a3f; }
+        .msg-feedback.erro { background: #3a1a1a; color: #f7768e; border: 1px solid #5a2e2e; }
+
+        .info-extra {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: #888;
+            text-align: center;
+        }
+        .info-extra a { color: var(--primary); text-decoration: none; }
+        .info-extra a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER PÚBLICO (Só aparece se não estiver logado) -->
+    <header class="header-publico" id="headerPublico">
+        <div class="logo">🎰 MegaSena SaaS</div>
+        <a href="login.html" class="btn-login-header">Fazer Login</a>
+    </header>
+
+    <!-- MENU LATERAL (Só aparece se estiver logado) -->
+    <aside class="sidebar" id="sidebar" style="display: none;">
+        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+        <nav>
+            <a href="index.html">🏠 Início</a>
+            <a href="fechamento.html">🎯 Fechamento</a>
+            <a href="historico.html">📜 Meus Jogos</a>
+            <a href="globo-megasena.html">🎲 Simulador Físico</a>
+            <a href="probabilidade.html">📊 Probabilidades</a>
+            <a href="estatisticas.html">🔢 Estatísticas</a>
+            <a href="comparador.html">⚖️ Comparador</a>
+            <a href="verificar.html">🛡️ Auditoria</a>
+            <a href="contato.html" class="active">📞 Contato</a>
+            <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
+        </nav>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="content">
+        <h1>📞 Fale Conosco</h1>
+        <p class="subtitle">Tem dúvidas, sugestões ou quer contratar um plano? Envie uma mensagem ou fale direto com a gente.</p>
+        
+        <div class="panel">
+            <div class="grid-contato">
+                
+                <!-- Formulário -->
+                <div>
+                    <form id="formContato">
+                        <div class="form-group">
+                            <label>Seu Nome</label>
+                            <input type="text" id="nome" placeholder="Como podemos te chamar?" required>
+                        </div>
+                        <div class="form-group">
+                            <label>E-mail</label>
+                            <input type="email" id="email" placeholder="seu@email.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Mensagem</label>
+                            <textarea id="mensagem" placeholder="Escreva sua mensagem aqui..." required></textarea>
+                        </div>
+                        <button type="submit" id="btnEnviar">Enviar Mensagem</button>
+                    </form>
+
+                    <div id="feedback" class="msg-feedback"></div>
+                </div>
+
+                <!-- Canais Diretos -->
+                <div class="canais-diretos">
+                    <h3>Prefere falar direto?</h3>
+                    <p style="font-size: 0.85rem; color: #888; margin-bottom: 15px;">
+                        Atendimento de Segunda a Sexta, das 9h às 18h.
+                    </p>
+
+                    <a href="https://wa.me/5521987702255?text=Ol%C3%A1%21%20Vim%20pelo%20site%20da%20MegaSena%20SaaS." 
+                       target="_blank" class="btn-social btn-whatsapp">
+                        💬 WhatsApp Comercial
+                    </a>
+
+                    <a href="https://t.me/seu_usuario_telegram" 
+                       target="_blank" class="btn-social btn-telegram">
+                        ✈️ Telegram
+                    </a>
+                </div>
+
+            </div>
+
+            <div class="info-extra">
+                Você também pode nos enviar um e-mail direto para <a href="mailto:sergfarias@gmail.com">sergfarias@gmail.com</a>.
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'https://localhost:7155';
+        const token = localStorage.getItem('token');
+
+        // ==========================================
+        // CONTROLE DE ACESSO (PÚBLICO vs LOGADO)
+        // ==========================================
+        const sidebar = document.getElementById('sidebar');
+        const headerPublico = document.getElementById('headerPublico');
+
+        if (token) {
+            // Usuário logado: mostra menu lateral, esconde header
+            sidebar.style.display = 'flex';
+            headerPublico.style.display = 'none';
+        } else {
+            // Visitante: mostra header, esconde menu lateral, ajusta layout
+            sidebar.style.display = 'none';
+            headerPublico.style.display = 'flex';
+            document.body.classList.add('publico');
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuarioNome');
+            window.location.href = 'login.html';
+        }
+
+        // ==========================================
+        // ENVIO DO FORMULÁRIO
+        // ==========================================
+        document.getElementById('formContato').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nome = document.getElementById('nome').value;
+            const email = document.getElementById('email').value;
+            const mensagem = document.getElementById('mensagem').value;
+            const btn = document.getElementById('btnEnviar');
+            const feedback = document.getElementById('feedback');
+
+            // Desabilita o botão para evitar duplo envio
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+            feedback.style.display = 'none';
+
+            try {
+                // CHAMADA REAL À API
+                const response = await fetch(`${API_URL}/api/Contato`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, email, mensagem })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.erro || "Erro ao enviar mensagem.");
+                }
+
+                // Exibe sucesso
+                feedback.className = 'msg-feedback sucesso';
+                feedback.textContent = `✅ ${data.mensagem}`;
+                feedback.style.display = 'block';
+
+                // Limpa o formulário
+                document.getElementById('formContato').reset();
+
+            } catch (err) {
+                feedback.className = 'msg-feedback erro';
+                feedback.textContent = `❌ ${err.message} Tente novamente ou use o WhatsApp.`;
+                feedback.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Enviar Mensagem';
+            }
+        });
+    </script>
+</body>
+</html>

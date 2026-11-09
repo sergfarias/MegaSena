@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparador de Estratégias - MegaSena SaaS</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* CSS ESPECÍFICO DO COMPARADOR */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        input[type="range"] { flex-grow: 1; accent-color: var(--primary); }
+
+        .dezenas-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .comparacao-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .estrategia-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .estrategia-card h3 { font-size: 1.1rem; margin-bottom: 10px; color: #fff; }
+        .estrategia-card p { font-size: 0.9rem; color: #888; margin-bottom: 20px; }
+
+        .valor-destaque { font-size: 1.6rem; font-weight: bold; margin-bottom: 10px; color: var(--primary); }
+        .valor-destaque.verde { color: var(--success); }
+        .valor-destaque.amarelo { color: #FFEB3B; }
+
+        .conclusao-panel {
+            background-color: rgba(122, 162, 247, 0.1);
+            border: 1px solid var(--primary);
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .conclusao-panel h3 { color: var(--primary); margin-bottom: 10px; font-size: 1.2rem; }
+        .conclusao-panel p { font-size: 1rem; color: #ccc; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+        <nav>
+            <a href="index.html">🏠 Início</a>
+            <a href="fechamento.html">🎯 Fechamento</a>
+            <a href="historico.html">📜 Meus Jogos</a>
+            <a href="globo-megasena.html">🎲 Simulador Físico</a>
+            <a href="probabilidade.html">📊 Probabilidades</a>
+            <a href="estatisticas.html">🔢 Estatísticas</a>
+            <a href="comparador.html" class="active">⚖️ Comparador</a>
+            <a href="verificar.html">🛡️ Auditoria</a>
+            <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <h1>⚖️ Comparador de Estratégias</h1>
+        <p style="color: #aaa; text-align: center; margin-bottom: 30px;">O que é melhor: jogar tudo em 1 aposta múltipla ou espalhar o dinheiro em vários jogos simples?</p>
+
+        <div class="panel" style="max-width: 900px; width: 100%;">
+            
+            <div class="slider-container">
+                <span style="color: #ccc; font-weight: bold;">Estratégia A: Aposta de</span>
+                <input type="range" id="dezenasRange" min="7" max="20" value="8" step="1" oninput="atualizarComparacao()">
+                <span class="dezenas-display" id="dezenasLabel">8</span>
+                <span style="color: #ccc; font-weight: bold;">dezenas</span>
+            </div>
+
+            <div class="comparacao-grid">
+                <div class="estrategia-card" style="border-top: 4px solid var(--primary);">
+                    <h3>Aposta Múltipla</h3>
+                    <p id="descMultipla">1 jogo de 8 dezenas</p>
+                    <div class="valor-destaque" id="custoMultipla">R$ 0,00</div>
+                    <div style="font-size: 0.85rem; color: #ccc; margin-top: 15px;">Chance de acertar Quadra ou mais:</div>
+                    <div class="valor-destaque amarelo" id="probMultipla">0%</div>
+                </div>
+
+                <div class="estrategia-card" style="border-top: 4px solid var(--success);">
+                    <h3>Jogos Simples</h3>
+                    <p id="descSimples">28 jogos de 6 dezenas</p>
+                    <div class="valor-destaque" id="custoSimples">R$ 0,00</div>
+                    <div style="font-size: 0.85rem; color: #ccc; margin-top: 15px;">Chance de acertar Quadra ou mais:</div>
+                    <div class="valor-destaque verde" id="probSimples">0%</div>
+                </div>
+            </div>
+
+            <div class="conclusao-panel">
+                <h3>💡 Veredito Matemático</h3>
+                <p id="textoConclusao">Calculando...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuarioNome');
+            window.location.href = 'login.html';
+        }
+
+        let debounceTimer;
+
+        async function atualizarComparacao() {
+            const dezenas = document.getElementById('dezenasRange').value;
+            document.getElementById('dezenasLabel').innerText = dezenas;
+
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`https://localhost:7155/api/MegaSena/comparar-estrategias?dezenas=${dezenas}`);
+                    if (!response.ok) throw new Error("Erro ao comparar");
+
+                    const data = await response.json();
+                    
+                    // Atualiza os textos das descrições
+                    document.getElementById('descMultipla').innerText = `1 jogo de ${data.dezenasMultipla} dezenas`;
+                    document.getElementById('descSimples').innerText = `${data.qtdJogosSimples} jogos de 6 dezenas`;
+
+                    // Atualiza os custos
+                    document.getElementById('custoMultipla').innerText = `R$ ${data.custoTotal.toFixed(2).replace('.', ',')}`;
+                    document.getElementById('custoSimples').innerText = `R$ ${data.custoTotal.toFixed(2).replace('.', ',')}`;
+
+                    // Atualiza as probabilidades
+                    document.getElementById('probMultipla').innerText = formatarProb(data.probMultipla);
+                    document.getElementById('probSimples').innerText = formatarProb(data.probJogosSimples);
+
+                    // Exibe a conclusão
+                    document.getElementById('textoConclusao').innerText = data.conclusao;
+
+                } catch (error) {
+                    console.error(error);
+                }
+            }, 300);
+        }
+
+        function formatarProb(prob) {
+            if (prob <= 0) return "0%";
+            return `${(prob * 100).toFixed(4)}%`;
+        }
+
+        window.onload = atualizarComparacao;
+    </script>
+</body>
+</html>

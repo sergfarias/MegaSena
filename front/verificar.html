@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoria Criptográfica - MegaSena SaaS</title>
+    <!-- CSS GLOBAL -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* CSS ESPECÍFICO DA AUDITORIA */
+        .subtitle { font-size: 0.95rem; color: #888; text-align: center; margin-bottom: 30px; max-width: 600px; line-height: 1.5; }
+
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; flex-direction: column; }
+        
+        label { font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #ccc; }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 1rem;
+            letter-spacing: 1px;
+        }
+
+        #status { text-align: center; font-size: 1rem; margin-top: 15px; font-weight: bold; }
+
+        #areaResultados { display: none; margin-top: 30px; }
+        
+        .selo-verificado {
+            text-align: center;
+            padding: 25px;
+            background-color: rgba(158, 206, 106, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .selo-verificado h2 { color: var(--success); margin: 0 0 10px 0; font-size: 1.5rem; border: none;}
+        .selo-verificado p { margin: 0; font-size: 0.9rem; color: #ccc; }
+
+        .jogos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .jogo {
+            background-color: var(--bg-color);
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid var(--success);
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MENU LATERAL (Padrão via CSS) -->
+    <aside class="sidebar">
+        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+        <nav>
+            <a href="index.html">🏠 Início</a>
+            <a href="fechamento.html">🎯 Fechamento</a>
+            <a href="historico.html">📜 Meus Jogos</a>
+            <a href="globo-megasena.html">🎲 Simulador Físico</a>
+			            <a href="probabilidade.html" class="active">📊 Probabilidades</a>
+<a href="estatisticas.html" class="active">🔢 Estatísticas</a>
+<a href="comparador.html" class="active">⚖️ Comparador</a>
+            <a href="verificar.html" class="active">🛡️ Auditoria</a>
+            <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
+        </nav>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="content">
+        <h1>🛡️ Auditoria Criptográfica</h1>
+        <p class="subtitle">Cole o Hash SHA-256 que você recebeu ao gerar seus jogos. Nós vamos buscar os números originais no banco de dados e validar a integridade criptográfica.</p>
+
+        <div class="panel" style="max-width: 700px; width: 100%;">
+            <div class="input-group">
+                <label>Digite o Hash SHA-256 (64 caracteres):</label>
+                <input type="text" id="inputHash" placeholder="Ex: 7A6390BE819686660DC05D628CDC0837EB0B12ABCB63812F4EB3A6B53FD7E14">
+                <button id="btnValidar" onclick="validarHash()">Verificar Autenticidade</button>
+            </div>
+            
+            <p id="status"></p>
+
+            <div id="areaResultados">
+                <div class="selo-verificado" id="seloSucesso">
+                    <h2>✅ Jogos Autênticos e Inviolados</h2>
+                    <p>O Hash foi validado com sucesso. Lote gerado em: <strong id="dataGeracao"></strong></p>
+                </div>
+
+                <div class="jogos-grid" id="listaJogos"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuarioNome');
+            window.location.href = 'login.html';
+        }
+
+        async function validarHash() {
+            const hashInput = document.getElementById('inputHash').value.trim().toUpperCase();
+            const btn = document.getElementById('btnValidar');
+            const status = document.getElementById('status');
+            const areaResultados = document.getElementById('areaResultados');
+            const lista = document.getElementById('listaJogos');
+
+            if (hashInput.length !== 64) {
+                alert("O Hash SHA-256 deve ter exatamente 64 caracteres.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Buscando no banco...";
+            status.innerText = "";
+            areaResultados.style.display = 'none';
+            lista.innerHTML = '';
+
+            try {
+                const response = await fetch(`https://localhost:7155/api/Auditoria/${hashInput}`);
+                
+                if (!response.ok) {
+                    throw new Error("Hash não encontrado no banco de dados. Verifique se digitou corretamente.");
+                }
+
+                const data = await response.json();
+
+                if (data.integridadeConfirmada) {
+                    status.innerText = "";
+                    document.getElementById('dataGeracao').innerText = new Date(data.dataGeracao).toLocaleString('pt-BR');
+                    
+                    data.jogos.forEach(jogo => {
+                        const div = document.createElement('div');
+                        div.className = 'jogo';
+                        jogo.sort((a, b) => a - b).forEach(d => {
+                            const span = document.createElement('span');
+                            span.className = 'bolinha';
+                            span.innerText = d.toString().padStart(2, '0');
+                            div.appendChild(span);
+                        });
+                        lista.appendChild(div);
+                    });
+                    
+                    areaResultados.style.display = 'block';
+                } else {
+                    throw new Error("Falha de Integridade! O Hash foi adulterado.");
+                }
+
+            } catch (error) {
+                status.style.color = "var(--danger)";
+                status.innerText = "❌ " + error.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Verificar Autenticidade";
+            }
+        }
+    </script>
+</body>
+</html>

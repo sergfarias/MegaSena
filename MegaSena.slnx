@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/front/">
+    <File Path="front/globo-megasena.html" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/MegaSena.Api/MegaSena.Api.csproj" />
+    <Project Path="src/MegaSena.Application/MegaSena.Application.csproj" />
+    <Project Path="src/MegaSena.Cli/MegaSena.Cli.csproj" />
+    <Project Path="src/MegaSena.Domain/MegaSena.Domain.csproj" />
+    <Project Path="src/MegaSena.Infrastructure/MegaSena.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MegaSena.Api.Tests/MegaSena.Api.Tests.csproj" Id="0f686da4-103d-4ece-be04-8190310f4b46" />
+    <Project Path="tests/MegaSena.Application.Tests/MegaSena.Application.Tests.csproj" />
+    <Project Path="tests/MegaSena.Domain.Tests/MegaSena.Domain.Tests.csproj" />
+    <Project Path="tests/MegaSena.Infrastructure.Tests/MegaSena.Infrastructure.Tests.csproj" />
+  </Folder>
+  
+</Solution>

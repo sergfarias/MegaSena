@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="historico.json" />
+    <Content Remove="simulador.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="historico.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="simulador.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MegaSena.Domain\MegaSena.Domain.csproj" />
+    <ProjectReference Include="..\MegaSena.Application\MegaSena.Application.csproj" />
+    <ProjectReference Include="..\MegaSena.Infrastructure\MegaSena.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

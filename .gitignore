@@ -1,0 +1,15 @@
+# Pastas de Build do .NET
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+
+# Banco de dados e Logs
+*.db
+*.log
+
+# Arquivos de Configuração Sensíveis
+appsettings.json
+appsettings.*.json
+!appsettings.Development.json # (Opcional: manter só o de dev se não tiver senha real)

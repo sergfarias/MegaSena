@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Fechamento - MegaSena SaaS</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .volante {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .dezena {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 50%;
+            width: 100%;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .dezena:hover { border-color: var(--primary); }
+        .dezena.selected {
+            background-color: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: var(--border);
+            border-radius: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 50%;
+            background-color: var(--primary);
+            border-radius: 3px;
+            animation: loading 1.5s infinite linear;
+        }
+
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+
+        #resultados { grid-column: span 2; display: none; }
+        
+        .jogo-inteligente {
+            background-color: rgba(122, 162, 247, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .jogo-inteligente h3 { margin: 0 0 10px 0; color: var(--primary); }
+        .jogo-inteligente p { font-size: 0.95rem; margin: 5px 0; color: var(--text-main); }
+        
+        .economia-grid {
+            display: flex; 
+            justify-content: space-around; 
+            margin-top: 15px; 
+            border-top: 1px solid var(--border); 
+            padding-top: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .economia-item span { display: block; font-size: 0.8rem; color: #888; }
+
+        .jogos-lista {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .jogo {
+            background-color: var(--bg-color);
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid var(--primary);
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+
+        .hash-box {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #1a1b26;
+            border: 1px dashed var(--success);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .hash-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .cadeado-animado {
+            font-size: 2.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.8; }
+        }
+
+        .hash-explicacao {
+            font-size: 0.75rem;
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        .hash-code-bonito {
+            font-family: monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+            padding: 10px;
+            background: #111;
+            border-radius: 4px;
+            color: #FFEB3B;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .hash-footer {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .posicionamento {
+            color: #888;
+            font-size: 0.95rem;
+            margin-bottom: 25px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .posicionamento strong { color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+        <nav>
+            <a href="index.html">🏠 Início</a>
+            <a href="fechamento.html" class="active">🎯 Fechamento</a>
+            <a href="historico.html">📜 Meus Jogos</a>
+            <a href="globo-megasena.html">🎲 Simulador Físico</a>
+            <a href="probabilidade.html">📊 Probabilidades</a>
+            <a href="estatisticas.html">🔢 Estatísticas</a>
+            <a href="comparador.html">⚖️ Comparador</a>
+            <a href="verificar.html">🛡️ Auditoria</a>
+            <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <h1>Fechamento Matemático</h1>
+        
+        <p class="posicionamento">
+            O <strong>Quantum Engine</strong> substitui o caos do azar pela <strong>ordem do algoritmo</strong>.<br>
+            Aqui, você não compra um palpite: você compra <strong>controle matemático e otimização de capital</strong>.
+        </p>
+
+        <div class="container">
+            <div class="panel">
+                <h2>1. Selecione as Dezenas</h2>
+                <div class="volante" id="volante"></div>
+                <p style="text-align: center;">Selecionadas: <strong id="contador">0</strong></p>
+            </div>
+
+            <div class="panel">
+                <h2>2. Configuração do Fechamento</h2>
+                
+                <div class="form-group">
+                    <label>Garantia Desejada</label>
+                    <select id="garantia">
+                        <option value="4">Quadra (4 acertos)</option>
+                        <option value="5">Quina (5 acertos)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Universo Sorteado (Mega-Sena)</label>
+                    <input type="number" id="universo" value="6" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Máximo de Pares Consecutivos</label>
+                    <select id="maxPares">
+                        <option value="0">Nenhum par (mais restrito)</option>
+                        <option value="1" selected>Até 1 par</option>
+                        <option value="2">Até 2 pares</option>
+                        <option value="3">Até 3 pares</option>
+                    </select>
+                </div>
+
+                <button id="btnGerar" onclick="gerarFechamento()">Gerar Fechamento</button>
+                <p id="status" style="text-align: center; font-size: 0.9rem; margin-top: 10px;"></p>
+                
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar"></div>
+                </div>
+            </div>
+
+            <div class="panel" id="resultados">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
+                    <h2 style="margin: 0; border: none; padding: 0;">3. Resultados</h2>
+                    <button onclick="exportarCSV()" style="width: auto; padding: 8px 15px; background: #2196F3; margin-top: 0; font-size: 0.9rem;">
+                        📥 Exportar CSV
+                    </button>
+                </div>
+                
+                <div class="jogo-inteligente">
+                    <h3>Seu Jogo Inteligente</h3>
+                    <p>
+                        Para garantir a Quadra com as <strong id="qtdDezenasEscolhidas">0</strong> dezenas que você escolheu, a Caixa exigiria que você jogasse <strong id="qtdCombinacoes">0</strong> jogos diferentes.
+                    </p>
+                    <p>
+                        A nossa matemática reduziu isso para apenas <strong id="qtdJogosGerados" style="color: var(--success);">0</strong> jogos.
+                    </p>
+                    
+                    <div class="economia-grid">
+                        <div class="economia-item">
+                            <span>Custo "Jogando Tudo"</span>
+                            <span style="font-size: 1.1rem; color: var(--danger); text-decoration: line-through;" id="custoBurro">R$ 0,00</span>
+                        </div>
+                        <div class="economia-item">
+                            <span>Seu Custo Real</span>
+                            <span style="font-size: 1.2rem; color: var(--success); font-weight: bold;" id="custoReal">R$ 0,00</span>
+                        </div>
+                        <div class="economia-item">
+                            <span>Sua Economia</span>
+                            <span style="font-size: 1.2rem; color: #FFEB3B; font-weight: bold;" id="economiaTotal">R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; padding: 15px; background-color: rgba(255, 152, 0, 0.1); border-left: 4px solid #FF9800; border-radius: 4px; text-align: left;">
+                        <strong style="color: #FF9800; font-size: 1rem;">💡 Como funciona a Garantia Matemática?</strong>
+                        <p style="font-size: 0.9rem; margin: 5px 0 0 0; color: #ccc;">
+                            Imagine que você está fazendo um "cerco". Nós não sabemos quais 6 dezenas vão sair do globo da Caixa. 
+                            Mas, se <strong>todas as 6 dezenas sorteadas estiverem dentro das <span id="qtdDezenasEscolhidasObs">0</span> dezenas que você cercou</strong>, a nossa matemática garante que você acertará a Quadra.
+                        </p>
+                        <p style="font-size: 0.85rem; margin: 5px 0 0 0; color: #888;">
+                            (Isso não prevê o futuro. Se as dezenas sorteadas forem em grande parte fora do seu cerco, a garantia não se aplica).
+                        </p>
+                    </div>
+                </div>
+
+                <div class="jogos-lista" id="listaJogos"></div>
+
+                <div class="hash-box">
+                    <div class="hash-header">
+                        <div class="cadeado-animado">🔒</div>
+                        <div>
+                            <strong style="color: var(--success); font-size: 1rem;">Certificado de Autenticidade Criptográfica</strong>
+                            <div class="hash-explicacao">
+                                Palpites <strong>lacrados criptograficamente</strong> em <span id="dataLacre">...</span>.
+                                Este é o registro público da sua aposta:
+                            </div>
+                        </div>
+                    </div>
+                    <span id="hashResultado" class="hash-code-bonito">Gerando...</span>
+                    <div class="hash-footer">
+                        💡 Qualquer pessoa pode verificar este código no site da Caixa ou em um verificador SHA-256 independente. 
+                        Se os jogos forem alterados, o hash muda.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert("Você precisa estar logado para acessar o fechamento.");
+            window.location.href = 'login.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuarioNome');
+            window.location.href = 'login.html';
+        }
+
+        const dezenasSelecionadas = new Set();
+        const volanteElement = document.getElementById('volante');
+        const contadorElement = document.getElementById('contador');
+
+        for (let i = 1; i <= 60; i++) {
+            const div = document.createElement('div');
+            div.className = 'dezena';
+            div.innerText = i.toString().padStart(2, '0');
+            div.onclick = () => toggleDezena(i, div);
+            volanteElement.appendChild(div);
+        }
+
+        const dezenasImportadas = localStorage.getItem('dezenasParaFechamento');
+        if (dezenasImportadas) {
+            const dezenasArray = JSON.parse(dezenasImportadas);
+            
+            setTimeout(() => {
+                dezenasArray.forEach(numero => {
+                    const divDezena = Array.from(document.querySelectorAll('.dezena'))
+                                          .find(el => parseInt(el.innerText) === numero);
+                    if (divDezena) {
+                        dezenasSelecionadas.add(numero);
+                        divDezena.classList.add('selected');
+                    }
+                });
+                contadorElement.innerText = dezenasSelecionadas.size;
+                localStorage.removeItem('dezenasParaFechamento');
+            }, 50);
+        }
+
+        function toggleDezena(numero, element) {
+            if (dezenasSelecionadas.has(numero)) {
+                dezenasSelecionadas.delete(numero);
+                element.classList.remove('selected');
+            } else {
+                dezenasSelecionadas.add(numero);
+                element.classList.add('selected');
+            }
+            contadorElement.innerText = dezenasSelecionadas.size;
+        }
+
+        async function gerarFechamento() {
+            if (dezenasSelecionadas.size < 6) {
+                alert("Selecione pelo menos 6 dezenas!");
+                return;
+            }
+
+            const btn = document.getElementById('btnGerar');
+            const status = document.getElementById('status');
+            const progressContainer = document.getElementById('progressContainer');
+            
+            btn.disabled = true;
+            btn.innerText = "Calculando...";
+            status.innerText = "Processando matriz matemática. Isso pode levar alguns segundos...";
+            status.style.color = "var(--text-main)";
+            progressContainer.style.display = "block"; 
+            
+            document.getElementById('resultados').style.display = 'none';
+
+            const payload = {
+                dezenas: Array.from(dezenasSelecionadas),
+                garantia: parseInt(document.getElementById('garantia').value),
+                universoSorteado: parseInt(document.getElementById('universo').value),
+                maxPares: parseInt(document.getElementById('maxPares').value)
+            };
+
+            try {
+                const response = await fetch('https://localhost:7155/api/Cobertura/gerar', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    alert("Sua sessão expirou. Faça login novamente.");
+                    logout();
+                    return;
+                }
+
+                // TRATAMENTO DO RATE LIMIT (HTTP 429)
+                if (response.status === 429) {
+                    const segundos = parseInt(response.headers.get('Retry-After')) || 60;
+                    status.innerText = `⏳ Muitas requisições. Aguarde ${segundos} segundos e tente novamente.`;
+                    status.style.color = "var(--warning)";
+                    return; // Sai do try antes de tentar ler o JSON de sucesso
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.erro || "Erro ao gerar fechamento.");
+                }
+
+                renderizarResultados(data, payload);
+                status.innerText = "Fechamento gerado com sucesso!";
+                status.style.color = "var(--success)";
+
+            } catch (error) {
+                status.innerText = "❌ " + error.message;
+                status.style.color = "var(--danger)";
+                document.getElementById('resultados').style.display = 'none';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Gerar Fechamento";
+                progressContainer.style.display = "none"; 
+            }
+        }
+
+        async function renderizarResultados(data, payload) {
+            document.getElementById('resultados').style.display = 'block';
+            
+            const n = dezenasSelecionadas.size;
+            
+            function combinacao(n, k) {
+                if (k > n) return 0;
+                if (k === 0 || k === n) return 1;
+                let resultado = 1;
+                for (let i = 1; i <= k; i++) {
+                    resultado = resultado * (n - k + i) / i;
+                }
+                return resultado;
+            }
+            
+            const totalCombinacoes = combinacao(n, 6);
+            const custoBurro = totalCombinacoes * 6.00;
+            const economia = custoBurro - data.custoTotal;
+            const percentualEconomia = custoBurro > 0 ? (economia / custoBurro) * 100 : 0;
+
+            document.getElementById('qtdDezenasEscolhidas').innerText = n;
+            document.getElementById('qtdDezenasEscolhidasObs').innerText = n;
+            document.getElementById('qtdCombinacoes').innerText = totalCombinacoes.toLocaleString('pt-BR');
+            document.getElementById('qtdJogosGerados').innerText = data.totalJogos;
+            
+            const formatarReal = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            document.getElementById('custoBurro').innerText = formatarReal(custoBurro);
+            document.getElementById('custoReal').innerText = formatarReal(data.custoTotal);
+            
+            document.getElementById('economiaTotal').innerHTML = 
+                `${formatarReal(economia)} <br><small style="color: #9ece6a;">(${percentualEconomia.toFixed(2)}%)</small>`;
+
+            const lista = document.getElementById('listaJogos');
+            lista.innerHTML = '';
+            
+            data.jogos.forEach(jogo => {
+                const div = document.createElement('div');
+                div.className = 'jogo';
+                jogo.sort((a, b) => a - b).forEach(d => {
+                    const span = document.createElement('span');
+                    span.className = 'bolinha';
+                    span.innerText = d.toString().padStart(2, '0');
+                    div.appendChild(span);
+                });
+                lista.appendChild(div);
+            });
+
+            if (data.hashAuditoria) {
+                document.getElementById('hashResultado').innerText = data.hashAuditoria;
+                
+                const agora = new Date();
+                document.getElementById('dataLacre').innerText = 
+                    agora.toLocaleString('pt-BR', { 
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+            } else {
+                document.getElementById('hashResultado').innerText = "Erro ao gerar Hash.";
+            }
+        }
+
+        function exportarCSV() {
+            const lista = document.getElementById('listaJogos');
+            const jogosElements = lista.querySelectorAll('.jogo');
+
+            if (jogosElements.length === 0) {
+                alert("⚠️ Nenhum jogo para exportar. Por favor, gere o fechamento primeiro.");
+                return;
+            }
+
+            let csvContent = "Jogo;Dezena1;Dezena2;Dezena3;Dezena4;Dezena5;Dezena6\n";
+
+            jogosElements.forEach((jogoDiv, index) => {
+                const dezenas = Array.from(jogoDiv.querySelectorAll('.bolinha')).map(span => span.innerText);
+                csvContent += `${index + 1};${dezenas.join(';')}\n`;
+            });
+
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `fechamento_megasena_${new Date().getTime()}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
