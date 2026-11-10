@@ -103,14 +103,13 @@ public class ContadorDeJogosValidosTests
     [InlineData(6)]
     [InlineData(10)]
     [InlineData(100)]
-    public void Contar_MaxParesAcimaDe5_NaoDeveQuebrar(int maxPares)
+    public void Contar_MaxParesAcimaDe5_DeveLancarExcecao(int maxPares)
     {
-        // Esse é o teste que o PDF pediu (Seção 3.2).
-        // O endpoint /contar deve aceitar esses valores sem dar 500.
-        var ex = Record.Exception(() =>
+        // O domínio agora protege a integridade lançando exceção
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             ContadorDeJogosValidos.Contar(UniversoDosExemplos(), maxPares));
-        Assert.Null(ex);
     }
+
 
     [Fact]
     public void Contar_MaxPares5_DeveSerIgualAoTotalDeCombinacoes()
