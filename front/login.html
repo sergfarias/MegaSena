@@ -112,9 +112,10 @@
     </div>
 
     <script>
-		//const API_URL = 'https://localhost:7155';
-		const API_URL = 'http://megasena-api.runasp.net';
-       
+        // Testando LOCAL
+        //const API_URL = 'https://localhost:7155';
+        const API_URL = 'http://megasena-api.runasp.net';
+	   
         function mostrarRegistro() {
             document.getElementById('camposLogin').style.display = 'none';
             document.getElementById('camposRegistro').style.display = 'block';
@@ -133,13 +134,13 @@
             const erroDiv = document.getElementById('erro');
 
             try {
-                const response = await fetch('${API_URL}/api/Auth/login', {
+                // CORRIGIDO: Usando crase (`) em vez de aspas simples (')
+                const response = await fetch(`${API_URL}/api/Auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ login, senha })
                 });
 
-                // TRATAMENTO DO RATE LIMIT (HTTP 429)
                 if (response.status === 429) {
                     const segundos = parseInt(response.headers.get('Retry-After')) || 300;
                     const minutos = Math.ceil(segundos / 60);
@@ -169,13 +170,13 @@
             const erroDiv = document.getElementById('erro');
 
             try {
-                const response = await fetch('${API_URL}/api/Auth/registrar', {
+                // CORRIGIDO AQUI TAMBÉM (Estava apontando para o login por engano no seu código antigo)
+                const response = await fetch(`${API_URL}/api/Auth/registrar`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nome, login, email, senha })
                 });
 
-                // TRATAMENTO DO RATE LIMIT (HTTP 429)
                 if (response.status === 429) {
                     const segundos = parseInt(response.headers.get('Retry-After')) || 300;
                     const minutos = Math.ceil(segundos / 60);
