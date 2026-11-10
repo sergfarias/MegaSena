@@ -5,59 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comparador de Estratégias - MegaSena SaaS</title>
     <link rel="stylesheet" href="styles.css">
-    
     <style>
-        /* CSS ESPECÍFICO DO COMPARADOR */
         .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 30px;
-            background-color: var(--panel-bg);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
+            display: flex; align-items: center; gap: 15px; margin-bottom: 30px;
+            background-color: var(--panel-bg); padding: 20px; border-radius: 8px;
+            border: 1px solid var(--border); flex-wrap: wrap;
         }
-
         input[type="range"] { flex-grow: 1; accent-color: var(--primary); }
-
-        .dezenas-display {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--primary);
-            min-width: 50px;
-            text-align: center;
-        }
-
-        .comparacao-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
+        .dezenas-display { font-size: 1.5rem; font-weight: bold; color: var(--primary); min-width: 50px; text-align: center; }
+        .comparacao-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .comparacao-grid { grid-template-columns: 1fr; } }
         .estrategia-card {
-            background-color: var(--panel-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
+            background-color: var(--panel-bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 25px; text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
-
         .estrategia-card h3 { font-size: 1.1rem; margin-bottom: 10px; color: #fff; }
         .estrategia-card p { font-size: 0.9rem; color: #888; margin-bottom: 20px; }
-
         .valor-destaque { font-size: 1.6rem; font-weight: bold; margin-bottom: 10px; color: var(--primary); }
         .valor-destaque.verde { color: var(--success); }
         .valor-destaque.amarelo { color: #FFEB3B; }
-
         .conclusao-panel {
-            background-color: rgba(122, 162, 247, 0.1);
-            border: 1px solid var(--primary);
-            padding: 25px;
-            border-radius: 8px;
-            text-align: center;
+            background-color: rgba(122, 162, 247, 0.1); border: 1px solid var(--primary);
+            padding: 25px; border-radius: 8px; text-align: center;
         }
         .conclusao-panel h3 { color: var(--primary); margin-bottom: 10px; font-size: 1.2rem; }
         .conclusao-panel p { font-size: 1rem; color: #ccc; line-height: 1.5; }
@@ -65,8 +35,14 @@
 </head>
 <body>
 
-    <aside class="sidebar">
-        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+    <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
+    <div class="overlay-mobile" id="overlayMobile"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            🎰 <span>MegaSena SaaS</span>
+            <button class="btn-fechar" id="btnFecharMenu" aria-label="Fechar menu">✕</button>
+        </div>
         <nav>
             <a href="index.html">🏠 Início</a>
             <a href="fechamento.html">🎯 Fechamento</a>
@@ -85,7 +61,6 @@
         <p style="color: #aaa; text-align: center; margin-bottom: 30px;">O que é melhor: jogar tudo em 1 aposta múltipla ou espalhar o dinheiro em vários jogos simples?</p>
 
         <div class="panel" style="max-width: 900px; width: 100%;">
-            
             <div class="slider-container">
                 <span style="color: #ccc; font-weight: bold;">Estratégia A: Aposta de</span>
                 <input type="range" id="dezenasRange" min="7" max="20" value="8" step="1" oninput="atualizarComparacao()">
@@ -119,9 +94,7 @@
     </main>
 
     <script>
-	
-		//const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
+        const API_URL = 'https://megasena-api.runasp.net';
         
         function logout() {
             localStorage.removeItem('token');
@@ -138,29 +111,20 @@
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(async () => {
                 try {
-                    //const response = await fetch(`https://localhost:7155/api/MegaSena/comparar-estrategias?dezenas=${dezenas}`);
-					
-					const response = await fetch(`${API_URL}/api/MegaSena/comparar-estrategias?dezenas=${dezenas}`);
-					
-					
-					
+                    const response = await fetch(`${API_URL}/api/MegaSena/comparar-estrategias?dezenas=${dezenas}`);
                     if (!response.ok) throw new Error("Erro ao comparar");
 
                     const data = await response.json();
                     
-                    // Atualiza os textos das descrições
                     document.getElementById('descMultipla').innerText = `1 jogo de ${data.dezenasMultipla} dezenas`;
                     document.getElementById('descSimples').innerText = `${data.qtdJogosSimples} jogos de 6 dezenas`;
 
-                    // Atualiza os custos
                     document.getElementById('custoMultipla').innerText = `R$ ${data.custoTotal.toFixed(2).replace('.', ',')}`;
                     document.getElementById('custoSimples').innerText = `R$ ${data.custoTotal.toFixed(2).replace('.', ',')}`;
 
-                    // Atualiza as probabilidades
                     document.getElementById('probMultipla').innerText = formatarProb(data.probMultipla);
                     document.getElementById('probSimples').innerText = formatarProb(data.probJogosSimples);
 
-                    // Exibe a conclusão
                     document.getElementById('textoConclusao').innerText = data.conclusao;
 
                 } catch (error) {
@@ -175,6 +139,19 @@
         }
 
         window.onload = atualizarComparacao;
+
+        // Script do Hamburger
+        (function() {
+            const btnAbrir = document.getElementById('btnAbrirMenu');
+            const btnFechar = document.getElementById('btnFecharMenu');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlayMobile');
+            if (!sidebar || !overlay) return;
+            function fecharMenu() { sidebar.classList.remove('aberta'); overlay.classList.remove('ativo'); }
+            if (btnAbrir) btnAbrir.addEventListener('click', () => { sidebar.classList.add('aberta'); overlay.classList.add('ativo'); });
+            if (btnFechar) btnFechar.addEventListener('click', fecharMenu);
+            if (overlay) overlay.addEventListener('click', fecharMenu);
+        })();
     </script>
 </body>
 </html>

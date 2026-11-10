@@ -4,81 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auditoria Criptográfica - MegaSena SaaS</title>
-    <!-- CSS GLOBAL -->
     <link rel="stylesheet" href="styles.css">
     
     <style>
-        /* CSS ESPECÍFICO DA AUDITORIA */
         .subtitle { font-size: 0.95rem; color: #888; text-align: center; margin-bottom: 30px; max-width: 600px; line-height: 1.5; }
-
         .input-group { display: flex; gap: 10px; margin-bottom: 20px; flex-direction: column; }
-        
         label { font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #ccc; }
-        
         input[type="text"] {
-            width: 100%;
-            padding: 15px;
-            background-color: var(--bg-color);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 1rem;
-            letter-spacing: 1px;
+            width: 100%; padding: 15px; background-color: var(--bg-color);
+            border: 1px solid var(--border); color: var(--text-main);
+            border-radius: 4px; font-family: monospace; font-size: 1rem; letter-spacing: 1px;
         }
-
         #status { text-align: center; font-size: 1rem; margin-top: 15px; font-weight: bold; }
-
         #areaResultados { display: none; margin-top: 30px; }
-        
         .selo-verificado {
-            text-align: center;
-            padding: 25px;
-            background-color: rgba(158, 206, 106, 0.1);
-            border: 1px solid var(--success);
-            border-radius: 8px;
-            margin-bottom: 25px;
+            text-align: center; padding: 25px; background-color: rgba(158, 206, 106, 0.1);
+            border: 1px solid var(--success); border-radius: 8px; margin-bottom: 25px;
         }
-        
         .selo-verificado h2 { color: var(--success); margin: 0 0 10px 0; font-size: 1.5rem; border: none;}
         .selo-verificado p { margin: 0; font-size: 0.9rem; color: #ccc; }
-
-        .jogos-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 10px;
-        }
-
+        .jogos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
         .jogo {
-            background-color: var(--bg-color);
-            padding: 10px;
-            border-radius: 4px;
-            border-left: 4px solid var(--success);
-            display: flex;
-            gap: 5px;
-            justify-content: center;
+            background-color: var(--bg-color); padding: 10px; border-radius: 4px;
+            border-left: 4px solid var(--success); display: flex; gap: 5px; justify-content: center;
         }
     </style>
 </head>
 <body>
 
-    <!-- MENU LATERAL (Padrão via CSS) -->
-    <aside class="sidebar">
-        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+    <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
+    <div class="overlay-mobile" id="overlayMobile"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            🎰 <span>MegaSena SaaS</span>
+            <button class="btn-fechar" id="btnFecharMenu" aria-label="Fechar menu">✕</button>
+        </div>
         <nav>
             <a href="index.html">🏠 Início</a>
             <a href="fechamento.html">🎯 Fechamento</a>
             <a href="historico.html">📜 Meus Jogos</a>
             <a href="globo-megasena.html">🎲 Simulador Físico</a>
-			            <a href="probabilidade.html" class="active">📊 Probabilidades</a>
-<a href="estatisticas.html" class="active">🔢 Estatísticas</a>
-<a href="comparador.html" class="active">⚖️ Comparador</a>
+            <a href="probabilidade.html">📊 Probabilidades</a>
+            <a href="estatisticas.html">🔢 Estatísticas</a>
+            <a href="comparador.html">⚖️ Comparador</a>
             <a href="verificar.html" class="active">🛡️ Auditoria</a>
             <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
         </nav>
     </aside>
 
-    <!-- CONTEÚDO -->
     <main class="content">
         <h1>🛡️ Auditoria Criptográfica</h1>
         <p class="subtitle">Cole o Hash SHA-256 que você recebeu ao gerar seus jogos. Nós vamos buscar os números originais no banco de dados e validar a integridade criptográfica.</p>
@@ -86,7 +60,7 @@
         <div class="panel" style="max-width: 700px; width: 100%;">
             <div class="input-group">
                 <label>Digite o Hash SHA-256 (64 caracteres):</label>
-                <input type="text" id="inputHash" placeholder="Ex: 7A6390BE819686660DC05D628CDC0837EB0B12ABCB63812F4EB3A6B53FD7E14">
+                <input type="text" id="inputHash" placeholder="Ex: 7A6390BE...">
                 <button id="btnValidar" onclick="validarHash()">Verificar Autenticidade</button>
             </div>
             
@@ -97,15 +71,13 @@
                     <h2>✅ Jogos Autênticos e Inviolados</h2>
                     <p>O Hash foi validado com sucesso. Lote gerado em: <strong id="dataGeracao"></strong></p>
                 </div>
-
                 <div class="jogos-grid" id="listaJogos"></div>
             </div>
         </div>
     </main>
 
     <script>
-		//const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
+        const API_URL = 'https://megasena-api.runasp.net';
        
         function logout() {
             localStorage.removeItem('token');
@@ -169,6 +141,19 @@
                 btn.innerText = "Verificar Autenticidade";
             }
         }
+
+        // Script do Hamburger
+        (function() {
+            const btnAbrir = document.getElementById('btnAbrirMenu');
+            const btnFechar = document.getElementById('btnFecharMenu');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlayMobile');
+            if (!sidebar || !overlay) return;
+            function fecharMenu() { sidebar.classList.remove('aberta'); overlay.classList.remove('ativo'); }
+            if (btnAbrir) btnAbrir.addEventListener('click', () => { sidebar.classList.add('aberta'); overlay.classList.add('ativo'); });
+            if (btnFechar) btnFechar.addEventListener('click', fecharMenu);
+            if (overlay) overlay.addEventListener('click', fecharMenu);
+        })();
     </script>
 </body>
 </html>

@@ -29,9 +29,6 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
         int palavras = (alvos.Length + 63) / 64;
         var coberturaPorCandidato = new ulong[candidatos.Length][];
 
-        // =========================================================
-        // ALTERAÇÃO AQUI (Seção 1.3): CancellationToken no Parallel.For
-        // =========================================================
         var parallelOptions = new ParallelOptions
         {
             CancellationToken = ct
@@ -53,7 +50,6 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
         }
         catch (OperationCanceledException)
         {
-            // Se o cancelamento foi solicitado, propaga para o roteador/controller parar tudo.
             ct.ThrowIfCancellationRequested();
         }
 
@@ -64,17 +60,13 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
         var escolhidos = new List<int>();
         int totalDescobertos = alvos.Length;
 
-        // =========================================================
-        // NOVO: Fila de Prioridade (Lazy Greedy)
-        // =========================================================
         var filaPrioridade = new PriorityQueue<int, int>();
         var ganhos = new int[candidatos.Length];
 
-        // Ganho inicial de todos
         for (int i = 0; i < candidatos.Length; i++)
         {
             ganhos[i] = ContarDescobertos(coberturaPorCandidato[i], descobertos, palavras);
-            filaPrioridade.Enqueue(i, -ganhos[i]); // Negativo para virar MaxHeap
+            filaPrioridade.Enqueue(i, -ganhos[i]);
         }
 
         while (totalDescobertos > 0 && filaPrioridade.Count > 0)
@@ -84,24 +76,20 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
             filaPrioridade.TryDequeue(out int melhorCand, out int prioridadeNeg);
             int ganhoAntigo = -prioridadeNeg;
 
-            // Verifica se o ganho caiu (porque outros jogos já cobriram parte dos alvos)
             int ganhoAtual = ContarDescobertos(coberturaPorCandidato[melhorCand], descobertos, palavras);
 
             if (ganhoAtual == 0) continue;
 
             if (ganhoAtual < ganhoAntigo)
             {
-                // O ganho caiu, devolve para a fila com o valor atualizado
                 filaPrioridade.Enqueue(melhorCand, -ganhoAtual);
                 continue;
             }
 
-            // O ganho é o mesmo, então é o melhor candidato atual
             escolhidos.Add(melhorCand);
             var bitsCand = coberturaPorCandidato[melhorCand];
             for (int w = 0; w < palavras; w++)
             {
-                // Atualiza alvos descobertos e conta quantos foram cobertos agora
                 ulong antes = descobertos[w];
                 descobertos[w] &= ~bitsCand[w];
                 totalDescobertos -= BitOperations.PopCount(antes & ~descobertos[w]);
@@ -121,7 +109,9 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
                 while (m != 0)
                 {
                     int bit = BitOperations.TrailingZeroCount(m);
-                    contagemAlvos[(w * 64) + bit]++;
+                    int index = (w * 64) + bit;
+                    if (index < contagemAlvos.Length) // GUARDA
+                        contagemAlvos[index]++;
                     m &= m - 1;
                 }
             }
@@ -139,7 +129,8 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
                 while (m != 0)
                 {
                     int bit = BitOperations.TrailingZeroCount(m);
-                    if (contagemAlvos[(w * 64) + bit] < 2)
+                    int index = (w * 64) + bit;
+                    if (index < contagemAlvos.Length && contagemAlvos[index] < 2) // GUARDA
                     {
                         podeRemover = false;
                         break;
@@ -157,7 +148,9 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
                     while (m != 0)
                     {
                         int bit = BitOperations.TrailingZeroCount(m);
-                        contagemAlvos[(w * 64) + bit]--;
+                        int index = (w * 64) + bit;
+                        if (index < contagemAlvos.Length) // GUARDA
+                            contagemAlvos[index]--;
                         m &= m - 1;
                     }
                 }

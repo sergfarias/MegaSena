@@ -2,47 +2,185 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar Senha - MegaSena SaaS</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 350px; }
-        h2 { text-align: center; color: #333; }
-        input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        button:hover { background: #45a049; }
-        .msg { padding: 10px; margin-top: 10px; border-radius: 4px; text-align: center; font-size: 14px; }
-        .msg.ok { background: #e7f3e7; color: #2e7d32; }
-        .msg.erro { background: #fdecea; color: #c62828; }
-        .link { display: block; text-align: center; margin-top: 15px; color: #4CAF50; text-decoration: none; font-size: 14px; }
+        :root {
+            --bg-color: #1a1b26;
+            --panel-bg: #24283b;
+            --text-main: #c0caf5;
+            --primary: #7aa2f7;
+            --primary-hover: #2ac3de;
+            --success: #9ece6a;
+            --danger: #f7768e;
+            --border: #414868;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 40px 30px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .form-group { margin-bottom: 15px; }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 4px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        input::placeholder {
+            color: #565f89;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .msg {
+            padding: 12px;
+            margin-top: 15px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            display: none;
+        }
+
+        .msg.ok {
+            background-color: #1a3a2a;
+            color: var(--success);
+            border: 1px solid #2e5a3f;
+        }
+
+        .msg.erro {
+            background-color: #3a1a1a;
+            color: var(--danger);
+            border: 1px solid #5a2e2e;
+        }
+
+        .link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .link:hover {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
+
+        hr.divisor {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Recuperar Senha</h2>
-        <p style="text-align: center; font-size: 14px; color: #666;">Informe seu e-mail cadastrado para receber o link de recuperação.</p>
+        <h2>🔐 Recuperar Senha</h2>
+        <p class="subtitle">Informe seu e-mail cadastrado para receber o link de recuperação.</p>
 
         <form id="formEsqueci">
-            <input type="email" id="email" placeholder="seu@email.com" required />
-            <button type="submit">Enviar link</button>
+            <div class="form-group">
+                <label>E-mail cadastrado</label>
+                <input type="email" id="email" placeholder="seu@email.com" required />
+            </div>
+            <button type="submit">Enviar link de recuperação</button>
         </form>
+
+        <hr class="divisor" id="divisorReset" style="display: none;" />
 
         <!-- Formulário de reset (escondido inicialmente) -->
         <form id="formReset" style="display: none;">
-            <input type="text" id="token" placeholder="Cole o token recebido" required />
-            <input type="password" id="novaSenha" placeholder="Nova senha (mínimo 8 caracteres)" minlength="8" required />
+            <div class="form-group">
+                <label>Token recebido</label>
+                <input type="text" id="token" placeholder="Cole o token aqui" required />
+            </div>
+            <div class="form-group">
+                <label>Nova senha</label>
+                <input type="password" id="novaSenha" placeholder="Mínimo 8 caracteres" minlength="8" required />
+            </div>
             <button type="submit">Redefinir senha</button>
         </form>
 
-        <div id="mensagem" class="msg" style="display: none;"></div>
+        <div id="mensagem" class="msg"></div>
         <a href="login.html" class="link">← Voltar ao login</a>
     </div>
 
     <script>
-       //const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
+        const API_URL = 'https://megasena-api.runasp.net';
        
         const formEsqueci = document.getElementById('formEsqueci');
         const formReset = document.getElementById('formReset');
+        const divisorReset = document.getElementById('divisorReset');
         const msg = document.getElementById('mensagem');
 
         // Verifica se já veio um token na URL (?token=...)
@@ -50,12 +188,18 @@
         if (urlParams.has('token')) {
             document.getElementById('token').value = urlParams.get('token');
             formEsqueci.style.display = 'none';
+            divisorReset.style.display = 'none';
             formReset.style.display = 'block';
         }
 
         formEsqueci.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = formEsqueci.querySelector('button');
             const email = document.getElementById('email').value;
+
+            btn.disabled = true;
+            btn.innerText = 'Enviando...';
+
             try {
                 const r = await fetch(`${API_URL}/api/Auth/esqueci-senha`, {
                     method: 'POST',
@@ -69,17 +213,26 @@
                 if (data.tokenDebug) {
                     document.getElementById('token').value = data.tokenDebug;
                     formEsqueci.style.display = 'none';
+                    divisorReset.style.display = 'block';
                     formReset.style.display = 'block';
                 }
             } catch (err) {
                 exibirMensagem('Erro de conexão com o servidor.', false);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Enviar link de recuperação';
             }
         });
 
         formReset.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = formReset.querySelector('button');
             const token = document.getElementById('token').value;
             const novaSenha = document.getElementById('novaSenha').value;
+
+            btn.disabled = true;
+            btn.innerText = 'Redefinindo...';
+
             try {
                 const r = await fetch(`${API_URL}/api/Auth/resetar-senha`, {
                     method: 'POST',
@@ -94,6 +247,9 @@
                 }
             } catch (err) {
                 exibirMensagem('Erro de conexão com o servidor.', false);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Redefinir senha';
             }
         });
 

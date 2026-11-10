@@ -38,10 +38,14 @@ public sealed class SolverRoteador : ICoberturaSolver
 
         try
         {
-            return _exato.Resolver(dezenas, garantia, universoSorteado, maxPares, ub, orcamento.Token);
+            var resultadoExato = _exato.Resolver(dezenas, garantia, universoSorteado, maxPares, ub, orcamento.Token);
+
+            // Se o exato rodou e achou uma solução, o mínimo está provado
+            return resultadoExato with { MinimoProvado = true };
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            // Estourou o tempo, devolve o guloso (MinimoProvado = false, que é o padrão)
             return ub;
         }
     }
@@ -61,6 +65,7 @@ public sealed class SolverRoteador : ICoberturaSolver
                 jogos.Add(jogo);
         }
 
-        return new MegaSena.Domain.Cobertura.Cobertura(dezenas, 6, garantia, universoSorteado, jogos);
+        // Marca como MinimoProvado = true, pois a garantia 6/6 gera todos os jogos possíveis
+        return new MegaSena.Domain.Cobertura.Cobertura(dezenas, 6, garantia, universoSorteado, jogos, true);
     }
 }

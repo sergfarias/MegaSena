@@ -1,7 +1,7 @@
-﻿using MegaSena.Application.Servicos;
+﻿using MegaSena.Infrastructure.Seguranca;
 using Xunit;
 
-namespace MegaSena.Application.Tests.Servicos;
+namespace MegaSena.Infrastructure.Tests.Seguranca; // Mude o namespace
 
 public class AuditoriaServiceTests
 {

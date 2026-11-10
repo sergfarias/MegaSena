@@ -15,6 +15,10 @@
             gap: 20px;
         }
 
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
         .volante {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
@@ -70,6 +74,10 @@
         }
 
         #resultados { grid-column: span 2; display: none; }
+        
+        @media (max-width: 768px) {
+            #resultados { grid-column: span 1; }
+        }
         
         .jogo-inteligente {
             background-color: rgba(122, 162, 247, 0.1);
@@ -179,8 +187,16 @@
 </head>
 <body>
 
-    <aside class="sidebar">
-        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+    <!-- BOTÕES MOBILE -->
+    <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
+    <div class="overlay-mobile" id="overlayMobile"></div>
+
+    <!-- SIDEBAR PADRONIZADA -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            🎰 <span>MegaSena SaaS</span>
+            <button class="btn-fechar" id="btnFecharMenu" aria-label="Fechar menu">✕</button>
+        </div>
         <nav>
             <a href="index.html">🏠 Início</a>
             <a href="fechamento.html" class="active">🎯 Fechamento</a>
@@ -244,7 +260,7 @@
             </div>
 
             <div class="panel" id="resultados">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin: 0; border: none; padding: 0;">3. Resultados</h2>
                     <button onclick="exportarCSV()" style="width: auto; padding: 8px 15px; background: #2196F3; margin-top: 0; font-size: 0.9rem;">
                         📥 Exportar CSV
@@ -311,8 +327,7 @@
     </main>
 
     <script>
-		//const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
+        const API_URL = 'https://megasena-api.runasp.net';
         
         const token = localStorage.getItem('token');
         if (!token) {
@@ -393,7 +408,7 @@
             };
 
             try {
-                const response = await fetch('${API_URL}/api/Cobertura/gerar', {
+                const response = await fetch(`${API_URL}/api/Cobertura/gerar`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -408,12 +423,11 @@
                     return;
                 }
 
-                // TRATAMENTO DO RATE LIMIT (HTTP 429)
                 if (response.status === 429) {
                     const segundos = parseInt(response.headers.get('Retry-After')) || 60;
                     status.innerText = `⏳ Muitas requisições. Aguarde ${segundos} segundos e tente novamente.`;
                     status.style.color = "var(--warning)";
-                    return; // Sai do try antes de tentar ler o JSON de sucesso
+                    return;
                 }
 
                 const data = await response.json();
@@ -527,6 +541,29 @@
             link.click();
             document.body.removeChild(link);
         }
+
+        // Script do Hamburger
+        (function() {
+            const btnAbrir = document.getElementById('btnAbrirMenu');
+            const btnFechar = document.getElementById('btnFecharMenu');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlayMobile');
+
+            if (!sidebar || !overlay) return;
+
+            function fecharMenu() {
+                sidebar.classList.remove('aberta');
+                overlay.classList.remove('ativo');
+            }
+
+            if (btnAbrir) btnAbrir.addEventListener('click', () => {
+                sidebar.classList.add('aberta');
+                overlay.classList.add('ativo');
+            });
+            
+            if (btnFechar) btnFechar.addEventListener('click', fecharMenu);
+            if (overlay) overlay.addEventListener('click', fecharMenu);
+        })();
     </script>
 </body>
 </html>

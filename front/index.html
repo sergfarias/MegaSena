@@ -437,7 +437,7 @@
 
             try {
                 // CHAMADA PARA A SUA API, que vai contornar o bloqueio de IP
-                const response = await fetch('${API_URL}/api/MegaSena/ultimo-sorteio');
+                const response = await fetch(`${API_URL}/api/MegaSena/ultimo-sorteio`);
                 
                 if (!response.ok) throw new Error('Erro na API: ' + response.status);
 

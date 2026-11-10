@@ -1,11 +1,10 @@
-﻿using MegaSena.Api.Models; 
+﻿using MegaSena.Api.Models;
 using MegaSena.Application.Servicos;
 using MegaSena.Infrastructure.Data;
 using MegaSena.Infrastructure.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -31,13 +30,23 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Registrar([FromBody] RegistroRequest request)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState); // Retorna os erros de validação do DTO
+            return BadRequest(ModelState);
 
+        // Verifica se o login já existe
         if (await _context.Usuarios.AnyAsync(u => u.Login == request.Login))
+        {
+            // Gasta o mesmo tempo de um BCrypt real para mitigar timing attack
+            _authService.GerarHashSenha("dummy-timing-attack");
             return BadRequest(new { Erro = "Este login já está em uso." });
+        }
 
+        // Verifica se o e-mail já existe
         if (await _context.Usuarios.AnyAsync(u => u.Email == request.Email))
+        {
+            // Gasta o mesmo tempo de um BCrypt real para mitigar timing attack
+            _authService.GerarHashSenha("dummy-timing-attack");
             return BadRequest(new { Erro = "Este e-mail já está cadastrado." });
+        }
 
         var usuario = new Usuario
         {
@@ -57,7 +66,6 @@ public class AuthController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            // Proteção contra condição de corrida (dois usuários se cadastrando ao mesmo tempo)
             return BadRequest(new { Erro = "Não foi possível criar o usuário. Tente novamente." });
         }
 
@@ -80,7 +88,9 @@ public class AuthController : ControllerBase
         {
             // Se o usuário não existe, verificamos um hash falso para gastar o mesmo tempo
             // que o BCrypt levaria para verificar uma senha real.
-            _authService.VerificarSenha(request.Senha, "$2a$11$abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+            // _authService.VerificarSenha(request.Senha, "$2a$11$abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+            // Hash BCrypt válido para mitigar timing attack
+            _authService.VerificarSenha(request.Senha, "$2a$11$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
             return Unauthorized(new { Erro = "Login ou senha inválidos." });
         }
 

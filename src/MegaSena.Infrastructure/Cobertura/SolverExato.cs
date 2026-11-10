@@ -5,12 +5,12 @@ namespace MegaSena.Infrastructure.Cobertura;
 
 public sealed class SolverExato
 {
-    public MegaSena.Domain.Cobertura.Cobertura Resolver(
+    public Domain.Cobertura.Cobertura Resolver(
         IReadOnlySet<int> dezenas,
         int garantia,
         int universoSorteado,
         int maxPares,
-        MegaSena.Domain.Cobertura.Cobertura? ub = null,
+        Domain.Cobertura.Cobertura? ub = null,
         CancellationToken ct = default)
     {
         // Fallback: se não passarem ub, usa o guloso
@@ -77,7 +77,7 @@ public sealed class SolverExato
             if (Busca(alvosDescobertos, k, escolhaAtual, bits, cobreAlvo, alvos.Length, ct))
             {
                 var jogos = escolhaAtual.Select(i => JogoDeMascara(candidatos[i])).ToList();
-                return new MegaSena.Domain.Cobertura.Cobertura(dezenas, 6, garantia, universoSorteado, jogos);
+                return new Domain.Cobertura.Cobertura(dezenas, 6, garantia, universoSorteado, jogos, true);
             }
         }
 

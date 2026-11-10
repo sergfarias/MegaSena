@@ -46,16 +46,6 @@ public class ContadorDeJogosValidosTests
         => Assert.Equal(46_383_480,
             ContadorDeJogosValidos.Contar(Universo.Completo(), maxPares: 1));
 
-    [Fact]
-    public void Contagem_38_Bolas_Universo_Realista()
-    {
-        // 38 = 42 menos as 4 "menos sorteadas" de exemplo. Vou excluir 4 dezenas
-        // do universo de 42 de forma a reproduzir o número do PDF (2.651.467).
-        // O PDF não diz QUAIS 4; o valor depende do conjunto. Uso uma combinação
-        // que reproduz o total e documento isso explicitamente no teste.
-        // (Ver nota abaixo.)
-        Assert.True(true);
-    }
 
     [Fact]
     public void ContarPorBlocos_42_Bolas_Maximo_1()

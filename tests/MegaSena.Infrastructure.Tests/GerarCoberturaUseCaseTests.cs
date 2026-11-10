@@ -1,5 +1,5 @@
 ﻿using MegaSena.Application.CasosDeUso;
-using MegaSena.Application.Servicos;
+using MegaSena.Infrastructure.Seguranca;
 using MegaSena.Infrastructure.Cobertura;
 
 namespace MegaSena.Infrastructure.Tests;

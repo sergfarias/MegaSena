@@ -1,238 +1,228 @@
-﻿﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador Mega-Sena 2D</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Mega-Sena 2D - MegaSena SaaS</title>
+    <link rel="stylesheet" href="styles.css">
+    
     <style>
-        :root {
-            --bg-color: #1e1e1e;
-            --panel-bg: #252526;
-            --text-main: #fff;
-            --primary: #4CAF50;
-        }
-
         body {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
             background-color: var(--bg-color);
             color: var(--text-main);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
             margin: 0;
-            height: 100vh;
-            overflow: hidden;
         }
 
-        #sidebar {
+        .painel-controles {
+            position: fixed;
+            left: 250px;
+            top: 0;
             width: 320px;
+            height: 100vh;
             background-color: var(--panel-bg);
-            padding: 20px;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+            border-right: 1px solid var(--border);
+            padding: 20px 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            z-index: 99;
             display: flex;
             flex-direction: column;
             gap: 15px;
-            z-index: 10;
-            overflow-y: auto;
-            max-height: 100vh;
         }
 
-        .menu-topo {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #444;
-            padding-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        .menu-topo a {
-            color: #aaa;
-            text-decoration: none;
-            font-size: 0.8rem;
-            padding: 5px 8px;
-            border-radius: 4px;
-            background: #333;
-            transition: all 0.2s;
-        }
-
-        .menu-topo a:hover {
-            background: var(--primary);
-            color: #fff;
-        }
-
-        h1 {
-            font-size: 1.2rem;
-            margin-top: 0;
+        .painel-controles h2 {
+            font-size: 1.1rem;
             color: var(--primary);
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
         }
 
-        .control-group {
-            display: flex;
-            flex-direction: column;
+        .control-group { display: flex; flex-direction: column; }
+        .control-group label { font-size: 0.85rem; margin-bottom: 5px; color: #ccc; }
+        .control-group input[type="range"] { width: 100%; accent-color: var(--primary); }
+        .control-group select, .control-group input[type="number"] {
+            padding: 8px; background: var(--bg-color); color: var(--text-main);
+            border: 1px solid var(--border); border-radius: 4px; width: 100%;
+            box-sizing: border-box; font-size: 0.9rem;
         }
 
-        label {
-            font-size: 0.9rem;
-            margin-bottom: 5px;
-            color: #ccc;
-        }
-
-        input[type="range"] {
-            width: 100%;
-        }
-
-        button {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px;
-            cursor: pointer;
-            font-size: 1rem;
-            border-radius: 4px;
-            margin-top: 10px;
+        .btn-painel {
+            width: 100%; padding: 10px; margin-top: 5px; font-size: 0.9rem;
+            font-weight: bold; border-radius: 4px; cursor: pointer; border: none;
             transition: background 0.2s;
-            width: 100%;
-            font-weight: bold;
         }
 
-        button:hover {
-            background-color: #45a049;
-        }
-        
-        button:disabled {
-            background-color: #555;
-            cursor: not-allowed;
-        }
-        
-        .btn-lote {
-            background-color: #2196F3;
-        }
-        
-        .btn-lote:hover {
-            background-color: #1976D2;
-        }
+        .btn-sortear { background-color: var(--success); color: #1a1b26; }
+        .btn-sortear:hover { background-color: #b9e88a; }
+        .btn-sortear:disabled { background-color: var(--border); cursor: wait; }
+
+        .btn-lote { background-color: #2196F3; color: #fff; }
+        .btn-lote:hover { background-color: #1976D2; }
+        .btn-lote:disabled { background-color: var(--border); cursor: wait; }
+
+        .btn-uniformidade { background-color: #FF9800; color: #fff; }
+        .btn-uniformidade:hover { background-color: #F57C00; }
+        .btn-uniformidade:disabled { background-color: var(--border); cursor: wait; }
+
+        .secao-uniformidade { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 15px; }
 
         #canvas-container {
+            margin-left: 570px;
             flex-grow: 1;
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1b26 0%, #16161e 100%);
         }
 
         canvas {
             background-color: #111;
             border-radius: 50%;
-            box-shadow: 0 0 50px rgba(76, 175, 80, 0.2), inset 0 0 20px rgba(0,0,0,0.8);
-            max-width: 90vh;
-            max-height: 90vh;
+            box-shadow: 0 0 50px rgba(122, 162, 247, 0.2), inset 0 0 20px rgba(0,0,0,0.8);
+            max-width: 95vh;
+            max-height: 95vh;
             width: 100%;
             height: auto;
+        }
+
+        .modal-fundo {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 1000;
+            display: none; justify-content: center; align-items: center;
+        }
+
+        .modal-box {
+            background: var(--panel-bg); padding: 30px; border-radius: 8px;
+            border: 1px solid var(--border); max-width: 500px; width: 90%;
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-box h2 { margin-top: 0; font-size: 1.4rem; color: #fff; border: none; padding: 0; }
+        .modal-box p { color: #ccc; font-size: 0.9rem; line-height: 1.5; }
+
+        .modal-acoes {
+            display: flex; gap: 10px; margin-top: 20px;
+            justify-content: center; flex-wrap: wrap;
+        }
+
+        .modal-acoes button {
+            width: auto; flex: 1; min-width: 120px;
+            padding: 10px 15px; font-size: 0.9rem; margin-top: 0;
+        }
+
+        @media (max-width: 1100px) {
+            .painel-controles { position: relative; left: auto; width: 100%; height: auto; max-height: 300px; order: 2; }
+            #canvas-container { margin-left: 0; margin-top: 70px; height: 60vh; order: 1; }
+            body { flex-direction: column; overflow-y: auto; height: auto; }
         }
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        
-        <div class="menu-topo">
+    <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
+    <div class="overlay-mobile" id="overlayMobile"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            🎰 <span>MegaSena SaaS</span>
+            <button class="btn-fechar" id="btnFecharMenu" aria-label="Fechar menu">✕</button>
+        </div>
+        <nav>
             <a href="index.html">🏠 Início</a>
             <a href="fechamento.html">🎯 Fechamento</a>
             <a href="historico.html">📜 Meus Jogos</a>
-			            <a href="probabilidade.html">📊 Probabilidades</a>
-<a href="estatisticas.html" class="active">🔢 Estatísticas</a>
-<a href="comparador.html" class="active">⚖️ Comparador</a>
+            <a href="globo-megasena.html" class="active">🎲 Simulador Físico</a>
+            <a href="probabilidade.html">📊 Probabilidades</a>
+            <a href="estatisticas.html">🔢 Estatísticas</a>
+            <a href="comparador.html">⚖️ Comparador</a>
             <a href="verificar.html">🛡️ Auditoria</a>
-			<a href="#" onclick="logout()" style="color: #f7768e; border: 1px solid #f7768e;">🚪 Sair</a>
-        </div>
+            <a href="#" class="btn-sair" onclick="logout()">🚪 Sair</a>
+        </nav>
+    </aside>
 
-        <h1>Ajustes do Sorteio</h1>
-
+    <div class="painel-controles">
+        <h2>⚙️ Ajustes do Sorteio</h2>
         <div class="control-group">
-            <label>Velocidade das Dezenas: <span id="valVento">80</span></label>
+            <label>Velocidade: <span id="valVento">80</span></label>
             <input type="range" id="vento" min="0" max="150" value="80">
         </div>
-
         <div class="control-group">
-            <label>Peso das Dezenas: <span id="valGrav">9.8</span></label>
+            <label>Peso: <span id="valGrav">9.8</span></label>
             <input type="range" id="grav" min="0" max="20" step="0.1" value="9.8">
         </div>
-
         <div class="control-group">
-            <label>Aleatoriedade das Dezenas: <span id="valTurb">0.5</span></label>
+            <label>Aleatoriedade: <span id="valTurb">0.5</span></label>
             <input type="range" id="turb" min="0" max="2" step="0.1" value="0.5">
         </div>
-
         <div class="control-group">
-            <label>Quique/Salto das Dezenas: <span id="valRest">0.7</span></label>
+            <label>Quique/Salto: <span id="valRest">0.7</span></label>
             <input type="range" id="rest" min="0.1" max="0.99" step="0.01" value="0.7">
         </div>
-
         <div class="control-group">
-			<label>Filtrar Últimos Sorteios:</label>
-			<select id="ultimosSorteios" style="padding: 5px; background: #333; color: white; border: 1px solid #555;">
-				<option value="0">Não filtrar (Globo cheio)</option>
-				<option value="1">Ignorar 1 sorteio</option>
-				<option value="2">Ignorar 2 sorteios</option>
-				<option value="3" selected>Ignorar 3 sorteios (Padrão)</option>
-			</select>
-		</div>    
-		
-		<div class="control-group" style="margin-top: 10px;">
-            <label>Quantidade de Jogos (Aposta):</label>
-            <input type="number" id="qtdJogos" value="1" min="1" max="20" style="padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px;">
+            <label>Filtrar Últimos:</label>
+            <select id="ultimosSorteios">
+                <option value="0">Não filtrar</option>
+                <option value="1">Ignorar 1</option>
+                <option value="2">Ignorar 2</option>
+                <option value="3" selected>Ignorar 3</option>
+            </select>
+        </div>    
+        <div class="control-group">
+            <label>Qtd. de Jogos:</label>
+            <input type="number" id="qtdJogos" value="1" min="1" max="20">
         </div>
 
-        <!-- DOIS BOTÕES -->
-		<button id="btnSortear">Sortear Dezenas (Animado)</button>
-        <button id="btnGerarLote" class="btn-lote">Gerar Lote (Rápido)</button>
+        <button id="btnSortear" class="btn-painel btn-sortear">Sortear (Animado)</button>
+        <button id="btnGerarLote" class="btn-painel btn-lote">Gerar Lote (Rápido)</button>
 
-        <!-- CONTROLES DE UNIFORMIDADE -->
-        <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
-            <div class="control-group">
-                <label>Qtd. de Simulações (Teste): <span id="valN">300</span></label>
+        <div class="secao-uniformidade">
+            <h2>🧪 Teste Científico</h2>
+            <div class="control-group" style="margin-bottom: 10px;">
+                <label>Simulações: <span id="valN">300</span></label>
                 <input type="range" id="nSimulacoes" min="10" max="5000" step="10" value="300">
             </div>
-
-            <button id="btnUniformidade" style="background-color: #FF9800;">Analisar se o globo é justo</button>
+            <button id="btnUniformidade" class="btn-painel btn-uniformidade">Globo justo?</button>
         </div>
-		
     </div>
 
     <div id="canvas-container">
         <canvas id="canvas"></canvas>
     </div>
 
-    <!-- MODAL DE UNIFORMIDADE -->
-    <div id="modalFundo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
-        <div style="background: #252526; padding: 30px; border-radius: 8px; border: 1px solid #444; max-width: 450px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-            
+    <div id="modalFundo" class="modal-fundo">
+        <div class="modal-box">
             <div id="iconeModal" style="font-size: 3.5rem; margin-bottom: 15px;">⚖️</div>
-            <h2 id="modalTitulo" style="margin-top: 0; font-size: 1.5rem; color: #fff;">Analisando...</h2>
-            
-            <div id="modalCorpo" style="font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px; color: #ccc;"></div>
-
-            <button id="btnFecharModal" onclick="document.getElementById('modalFundo').style.display = 'none'" style="background: #4CAF50; width: 100%; display: none;">Entendi</button>
+            <h2 id="modalTitulo">Analisando...</h2>
+            <div id="modalCorpo" style="margin-bottom: 25px; font-size: 0.95rem;"></div>
+            <button id="btnFecharModal" onclick="document.getElementById('modalFundo').style.display = 'none'" style="background: var(--success); display: none;">Entendi</button>
         </div>
     </div>
 
-    <!-- MODAL DE JOGOS GERADOS -->
-    <div id="modalJogosFundo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
-        <div style="background: #252526; padding: 30px; border-radius: 8px; border: 1px solid #444; max-width: 500px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-            <h2 style="margin-top: 0; font-size: 1.5rem; color: #4CAF50;">🎰 Seus Jogos</h2>
-            <p style="color: #aaa; font-size: 0.9rem; margin-top: -10px;">Gerados com sucesso. Boa sorte!</p>
-            
-            <div id="modalJogosLista" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; margin: 20px 0; padding-right: 5px;"></div>
-
-            <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: center;">
-                <button onclick="exportarCSV()" style="background: #2196F3; margin-top: 0; flex: 1;">📥 Baixar CSV</button>
-                <button onclick="irParaFechamento()" style="background: #FF9800; margin-top: 0; flex: 1;">🎯 Fechamento</button>
-                <button onclick="document.getElementById('modalJogosFundo').style.display = 'none'" style="background: #4CAF50; margin-top: 0; flex: 1;">Fechar</button>
+    <div id="modalJogosFundo" class="modal-fundo">
+        <div class="modal-box">
+            <h2 style="color: var(--success);">🎰 Seus Jogos</h2>
+            <p style="margin-top: -10px;">Gerados com sucesso. Boa sorte!</p>
+            <div id="modalJogosLista" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; margin: 20px 0; padding-right: 5px;"></div>
+            <div class="modal-acoes">
+                <button onclick="exportarCSV()" style="background: var(--primary);">📥 Baixar CSV</button>
+                <button onclick="irParaFechamento()" style="background: var(--warning); color: #1a1b26;">🎯 Fechamento</button>
+                <button onclick="document.getElementById('modalJogosFundo').style.display = 'none'" style="background: var(--success); color: #1a1b26;">Fechar</button>
             </div>
         </div>
     </div>
 
     <script>
-	    //const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
+        const API_URL = 'https://megasena-api.runasp.net';
         
         function logout() {
             localStorage.removeItem('token');
@@ -243,7 +233,8 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         
-        const tamanhoTela = Math.min(window.innerWidth * 0.7, window.innerHeight * 0.9);
+        const container = document.getElementById('canvas-container');
+        const tamanhoTela = Math.min(container.clientWidth * 0.95, container.clientHeight * 0.95);
         canvas.width = tamanhoTela;
         canvas.height = tamanhoTela;
         
@@ -254,7 +245,6 @@
         let config = { gravidade: 9.8, vento: 80, turbulencia: 0.5, restituicao: 0.7 };
         let jogosSalvosParaExportar = [];
 
-        // Controles de física
         document.getElementById('vento').addEventListener('input', e => {
             config.vento = parseFloat(e.target.value);
             document.getElementById('valVento').innerText = config.vento;
@@ -275,7 +265,6 @@
             document.getElementById('valN').innerText = e.target.value;
         });
 
-        // --- BOTÃO 1: SORTEAR (LOOP) ---
         document.getElementById('btnSortear').addEventListener('click', async () => {
             const btn = document.getElementById('btnSortear');
             const qtd = parseInt(document.getElementById('qtdJogos').value);
@@ -283,7 +272,7 @@
             const ultimos = document.getElementById('ultimosSorteios').value;
 
             if (qtd < 1) return;
-            btn.innerText = `Gerando ${qtd} jogos...`;
+            btn.innerText = `Gerando...`;
             btn.disabled = true;
 
             try {
@@ -299,15 +288,13 @@
                 exibirModalJogos(jogosGerados);
                 animarSorteioAPI(jogosGerados[0]);
             } catch (error) {
-                console.error("Erro capturado:", error);
                 alert(`Erro: ${error.message}`);
             } finally {
-                btn.innerText = "Sortear Dezenas (Animado)";
+                btn.innerText = "Sortear (Animado)";
                 btn.disabled = false;
             }
         });
 
-        // --- BOTÃO 2: GERAR LOTE (RÁPIDO) ---
         document.getElementById('btnGerarLote').addEventListener('click', async () => {
             const btn = document.getElementById('btnGerarLote');
             const qtd = parseInt(document.getElementById('qtdJogos').value);
@@ -318,19 +305,14 @@
                 return;
             }
 
-            btn.innerText = `Gerando lote...`;
+            btn.innerText = `Gerando...`;
             btn.disabled = true;
 
             try {
-                const response = await fetch('${API_URL}/api/MegaSena/gerar-lote', {
+                const response = await fetch(`${API_URL}/api/MegaSena/gerar-lote`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        quantidade: qtd,
-                        ultimos: parseInt(ultimos),
-                        menos: 4,
-                        maxPares: 1
-                    })
+                    body: JSON.stringify({ quantidade: qtd, ultimos: parseInt(ultimos), menos: 4, maxPares: 1 })
                 });
 
                 if (!response.ok) {
@@ -343,7 +325,6 @@
                 exibirModalJogos(data.jogos);
                 animarSorteioAPI(data.jogos[0]);
             } catch (error) {
-                console.error("Erro capturado:", error);
                 alert(`Erro: ${error.message}`);
             } finally {
                 btn.innerText = "Gerar Lote (Rápido)";
@@ -351,28 +332,25 @@
             }
         });
 
-        // --- FUNÇÃO AUXILIAR PARA O MODAL ---
         function exibirModalJogos(jogos) {
             const modalLista = document.getElementById('modalJogosLista');
             modalLista.innerHTML = ""; 
             jogos.forEach((jogo) => {
                 const div = document.createElement('div');
-                div.style.backgroundColor = '#333';
+                div.style.backgroundColor = 'var(--bg-color)';
                 div.style.padding = '12px';
                 div.style.borderRadius = '4px';
-                div.style.borderLeft = '4px solid #4CAF50';
-                div.style.fontSize = '1.3rem';
+                div.style.borderLeft = '4px solid var(--success)';
+                div.style.fontSize = '1.2rem';
                 div.style.fontWeight = 'bold';
                 div.style.color = '#FFEB3B';
                 div.style.textAlign = 'center';
-                const dezenasTexto = jogo.map(n => n.toString().padStart(2, '0')).join(' - ');
-                div.innerText = dezenasTexto;
+                div.innerText = jogo.map(n => n.toString().padStart(2, '0')).join(' - ');
                 modalLista.appendChild(div);
             });
             document.getElementById('modalJogosFundo').style.display = 'flex';
         }
 
-        // --- LÓGICA DE UNIFORMIDADE ---
         document.getElementById('btnUniformidade').addEventListener('click', async () => {
             const btn = document.getElementById('btnUniformidade');
             const nSimulacoes = parseInt(document.getElementById('nSimulacoes').value);
@@ -385,17 +363,11 @@
             const btnFechar = document.getElementById('btnFecharModal');
 
             iconeModal.innerText = "⏳";
-            modalTitulo.innerText = "Investigando o Sorteio...";
+            modalTitulo.innerText = "Investigando...";
             modalTitulo.style.color = "#fff";
             btnFechar.style.display = 'none';
             
-            modalCorpo.innerHTML = `
-                Calma, matemático não usa bola de cristal! 🔮<br><br>
-                Estamos simulando <strong>${nSimulacoes} sorteios</strong> nos bastidores para verificar se o nosso globo virtual é justo.<br><br>
-                <span style="font-size: 0.85rem; color: #888;">
-                    Pense nisso como jogar uma moeda 300 vezes. Se der 200 caras e 100 coroas, a moeda está viciada. Nós estamos fazendo esse teste com as 60 dezenas para garantir que <strong>nenhuma dezena tem mais chance que a outra</strong>.
-                </span>
-            `;
+            modalCorpo.innerHTML = `Simulando <strong>${nSimulacoes} sorteios</strong> para verificar a uniformidade do globo.`;
             modalFundo.style.display = 'flex';
             
             btn.innerText = "Analisando...";
@@ -406,46 +378,29 @@
                 if (!response.ok) throw new Error("Erro na API");
                 const data = await response.json();
                 
-                if (data.aprovado) {
+                if (data.semEvidenciaDeVies) {
                     iconeModal.innerText = "✅";
                     modalTitulo.innerText = "Globo Justo!";
-                    modalTitulo.style.color = "#4CAF50";
-                    modalCorpo.innerHTML = `
-                        <strong style="color: #4CAF50;">Pode confiar!</strong><br><br>
-                        A matemática provou que todas as dezenas têm exatamente a mesma chance de sair.<br><br>
-                        Se você apostar na dezena 01 ou na dezena 60, a probabilidade é idêntica. Não há números "viciados" ou com mais peso.
-                        <br><br>
-                        <span style="font-size: 0.8rem; color: #666;">
-                            (Análise técnica: Qui-quadrado ${data.quiQuadrado.toFixed(2)} dentro do limite aceitável de ${data.limite})
-                        </span>
-                    `;
+                    modalTitulo.style.color = "var(--success)";
+                    modalCorpo.innerHTML = `<strong style="color: var(--success);">Pode confiar!</strong><br><br>As dezenas têm chances iguais. (χ²: ${data.quiQuadrado?.toFixed(2) || '?'}, p: ${data.pValor?.toFixed(4) || '?'})`;
                 } else {
                     iconeModal.innerText = "⚠️";
-                    modalTitulo.innerText = "Atenção: Possível Viés!";
-                    modalTitulo.style.color = "#F44336";
-                    modalCorpo.innerHTML = `
-                        <strong style="color: #F44336;">O que aconteceu?</strong><br><br>
-                        O teste identificou que algumas dezenas podem estar saindo mais que o normal.<br><br>
-                        <em>Tente rodar a análise novamente com uma quantidade maior de simulações. Pode ter sido apenas uma coincidência estatística.</em>
-                        <br><br>
-                        <span style="font-size: 0.8rem; color: #666;">
-                            (Análise técnica: Qui-quadrado ${data.quiQuadrado.toFixed(2)} acima do limite de ${data.limite})
-                        </span>
-                    `;
+                    modalTitulo.innerText = "Possível Viés!";
+                    modalTitulo.style.color = "var(--danger)";
+                    modalCorpo.innerHTML = `<strong style="color: var(--danger);">Atenção!</strong><br><br>Algumas dezenas parecem sair mais. Tente rodar com mais simulações.<br><br><span style="font-size:0.8rem;color:#666">(χ²: ${data.quiQuadrado?.toFixed(2) || '?'}, p: ${data.pValor?.toFixed(4) || '?'})</span>`;
                 }
             } catch (error) {
                 iconeModal.innerText = "❌";
                 modalTitulo.innerText = "Erro de Conexão";
-                modalTitulo.style.color = "#F44336";
-                modalCorpo.innerHTML = "Não foi possível conectar ao servidor para fazer a análise.";
+                modalTitulo.style.color = "var(--danger)";
+                modalCorpo.innerHTML = "Não foi possível conectar ao servidor.";
             } finally {
-                btn.innerText = "Analisar se o globo é justo";
+                btn.innerText = "Globo justo?";
                 btn.disabled = false;
                 btnFechar.style.display = 'block';
             }
         });
 
-        // --- CLASSES E FÍSICA DO GLOBO ---
         class Bola {
             constructor(numero, x, y) {
                 this.numero = numero;
@@ -464,9 +419,7 @@
                     return;
                 }
                 this.vy += config.gravidade * dt;
-                if (this.y > centerY + raioGlobo * 0.3) {
-                    this.vy -= config.vento * dt;
-                }
+                if (this.y > centerY + raioGlobo * 0.3) this.vy -= config.vento * dt;
                 this.vx += (Math.random() - 0.5) * config.turbulencia * 10 * dt;
                 this.vy += (Math.random() - 0.5) * config.turbulencia * 10 * dt;
                 this.vx *= 0.99;
@@ -558,14 +511,14 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
             ctx.arc(centerX, centerY, raioGlobo, 0, Math.PI * 2);
-            ctx.strokeStyle = '#4CAF50';
+            ctx.strokeStyle = 'var(--primary)';
             ctx.lineWidth = 5;
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(centerX - 30, centerY - raioGlobo);
             ctx.lineTo(centerX + 30, centerY - raioGlobo);
             ctx.lineWidth = 8;
-            ctx.strokeStyle = '#FFEB3B';
+            ctx.strokeStyle = 'var(--gold)';
             ctx.stroke();
             for (const bola of bolas) bola.draw(ctx);
         }
@@ -606,15 +559,12 @@
             let csvContent = "Jogo;Dezena1;Dezena2;Dezena3;Dezena4;Dezena5;Dezena6\n";
             jogosSalvosParaExportar.forEach((jogo, index) => {
                 const dezenasOrdenadas = [...jogo].sort((a, b) => a - b);
-                const dezenasFormatadas = dezenasOrdenadas.map(n => n.toString().padStart(2, '0')).join(';');
-                csvContent += `${index + 1};${dezenasFormatadas}\n`;
+                csvContent += `${index + 1};${dezenasOrdenadas.map(n => n.toString().padStart(2, '0')).join(';')}\n`;
             });
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `meus_jogos_megasena_${new Date().getTime()}.csv`);
-            link.style.visibility = 'hidden';
+            link.href = URL.createObjectURL(blob);
+            link.download = `meus_jogos_megasena_${new Date().getTime()}.csv`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -623,16 +573,26 @@
         function irParaFechamento() {
             if (jogosSalvosParaExportar.length === 0) return;
             const todasAsDezenas = new Set();
-            jogosSalvosParaExportar.forEach(jogo => {
-                jogo.forEach(dezena => todasAsDezenas.add(dezena));
-            });
-            const dezenasBase = Array.from(todasAsDezenas);
-            localStorage.setItem('dezenasParaFechamento', JSON.stringify(dezenasBase));
+            jogosSalvosParaExportar.forEach(jogo => jogo.forEach(d => todasAsDezenas.add(d)));
+            localStorage.setItem('dezenasParaFechamento', JSON.stringify(Array.from(todasAsDezenas)));
             window.location.href = 'fechamento.html';
         }
 
         iniciarSimulacao();
         requestAnimationFrame(loop);
+
+        // Script do Hamburger
+        (function() {
+            const btnAbrir = document.getElementById('btnAbrirMenu');
+            const btnFechar = document.getElementById('btnFecharMenu');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlayMobile');
+            if (!sidebar || !overlay) return;
+            function fecharMenu() { sidebar.classList.remove('aberta'); overlay.classList.remove('ativo'); }
+            if (btnAbrir) btnAbrir.addEventListener('click', () => { sidebar.classList.add('aberta'); overlay.classList.add('ativo'); });
+            if (btnFechar) btnFechar.addEventListener('click', fecharMenu);
+            if (overlay) overlay.addEventListener('click', fecharMenu);
+        })();
     </script>
 </body>
 </html>

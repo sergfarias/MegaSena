@@ -1,5 +1,5 @@
 ﻿using MegaSena.Application.Portas;
-using MegaSena.Application.Servicos;
+using MegaSena.Infrastructure.Seguranca;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;

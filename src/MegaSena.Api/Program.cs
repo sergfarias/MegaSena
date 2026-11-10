@@ -9,11 +9,13 @@ using MegaSena.Infrastructure.Data;
 using MegaSena.Infrastructure.Repositories;
 using MegaSena.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Polly;
 using Scalar.AspNetCore;
 using System.Threading.RateLimiting;
+using MegaSena.Infrastructure.Seguranca;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +26,6 @@ var builder = WebApplication.CreateBuilder(args);
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Jwt:Key não configurada no appsettings ou variáveis de ambiente.");
 
-// Valida se a chave tem pelo menos 32 bytes (exigência do HMAC-SHA256)
 if (System.Text.Encoding.UTF8.GetByteCount(jwtKey) < 32)
 {
     throw new InvalidOperationException("A chave Jwt:Key deve ter pelo menos 32 bytes (32 caracteres).");
@@ -56,16 +57,23 @@ builder.Services.AddAuthentication(x =>
     };
 });
 
-// CORS TOTALMENTE LIBERADO PARA DESENVOLVIMENTO
+// CORS CONFIGURADO E VALIDADO
 var origens = builder.Configuration.GetSection("Cors:Origens").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFront", policy =>
     {
         if (builder.Environment.IsDevelopment())
-            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        {
+            policy.SetIsOriginAllowed(_ => true).AllowAnyMethod().AllowAnyHeader();
+        }
         else
+        {
+            if (origens.Length == 0)
+                throw new InvalidOperationException("Cors:Origens não configurado no appsettings para produção.");
+
             policy.WithOrigins(origens).AllowAnyMethod().AllowAnyHeader();
+        }
     });
 });
 
@@ -76,9 +84,6 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    // =========================================================================
-    // INTERCEPTADOR DO BLOQUEIO (Retorna o cabeçalho Retry-After)
-    // =========================================================================
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -93,22 +98,16 @@ builder.Services.AddRateLimiter(options =>
             cancellationToken: token);
     };
 
-    // =========================================================================
-    // BYPASS TOTAL PARA O AMBIENTE DE TESTES
-    // =========================================================================
     if (builder.Environment.IsEnvironment("Testing"))
     {
         options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(_ => RateLimitPartition.GetNoLimiter("test"));
-
         options.AddPolicy("fechamento", _ => RateLimitPartition.GetNoLimiter("test"));
         options.AddPolicy("contato", _ => RateLimitPartition.GetNoLimiter("test"));
         options.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("test"));
         options.AddPolicy("senha", _ => RateLimitPartition.GetNoLimiter("test"));
-
-        return; // Encerra a configuração do RateLimiter aqui se for teste
+        return;
     }
 
-    // 1. Limite Global por IP (Proteção contra DDoS)
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonimo",
@@ -120,7 +119,6 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
-    // 2. Política "fechamento"
     options.AddPolicy("fechamento", context =>
     {
         var usuarioId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -135,7 +133,6 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    // 3. Política "contato"
     options.AddPolicy("contato", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonimo",
@@ -147,7 +144,6 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
-    // 4. Política "auth"
     options.AddPolicy("auth", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonimo",
@@ -159,7 +155,6 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
-    // 5. Política "senha"
     options.AddPolicy("senha", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonimo",
@@ -170,7 +165,6 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
-
 });
 
 // ==========================================
@@ -186,9 +180,7 @@ builder.Services.AddTransient<AuthService>();
 builder.Services.AddTransient<AuditoriaService>();
 builder.Services.AddHttpClient<ResultadoService>();
 
-// ==========================================
 // BANCO DE DADOS
-// ==========================================
 var isTesting = builder.Environment.IsEnvironment("Testing");
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -222,6 +214,14 @@ builder.Services.AddSingleton<IRetornoHistoricoProvider, RetornoHistoricoProvide
 builder.Services.AddScoped<IConcursoRepository, ConcursoRepository>();
 builder.Services.AddTransient<CalcularProbabilidadeUseCase>();
 
+// NOVOS REGISTROS (Fábrica e Casos de Uso)
+builder.Services.AddTransient<IGeradorDeSorteioFactory, GeradorDeSorteioFactory>();
+builder.Services.AddTransient<GerarJogoUseCase>();
+builder.Services.AddTransient<GerarLoteJogosUseCase>();
+builder.Services.AddTransient<TestarUniformidadeUseCase>();
+builder.Services.AddTransient<BacktestLoteUseCase>();
+builder.Services.AddTransient<CompararEstrategiasUseCase>();
+
 builder.Services.AddHttpClient("ApiCaixa")
     .AddTransientHttpErrorPolicy(policy =>
         policy.WaitAndRetryAsync(3, _ => TimeSpan.FromSeconds(5)));
@@ -231,12 +231,18 @@ if (!builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddHostedService<RetornoHistoricoService>();
     builder.Services.AddHostedService<ImportadorConcursosService>();
 }
-var app = builder.Build();
 
+var app = builder.Build();
 
 // ==========================================
 // 4. PIPELINE DA APLICAÇÃO
 // ==========================================
+
+// ADICIONADO: Forwarded Headers para funcionar atrás de proxy (runasp.net)
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 app.UseCors("AllowFront");
 app.UseHttpsRedirection();

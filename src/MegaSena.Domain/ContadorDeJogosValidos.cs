@@ -6,7 +6,8 @@ public static class ContadorDeJogosValidos
     /// <summary>Jogos de 6 dezenas do universo com no máximo <paramref name="maxPares"/> pares consecutivos.</summary>
     public static long Contar(Universo universo, int maxPares)
     {
-        maxPares = Math.Clamp(maxPares, 0, 5);
+        if (maxPares < 0 || maxPares > 5)
+            throw new ArgumentOutOfRangeException(nameof(maxPares), "maxPares deve estar entre 0 e 5.");
 
         var dz = universo.Dezenas;
         int n = dz.Count;

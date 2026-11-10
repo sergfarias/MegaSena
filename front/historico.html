@@ -30,7 +30,6 @@
         .btn-ver.expandido { background: #f7768e; }
         .btn-ver:disabled { opacity: 0.6; cursor: wait; }
 
-        /* Linha de detalhes que aparece ao expandir */
         .linha-detalhes {
             background: #1e2030 !important;
             padding: 0 !important;
@@ -54,7 +53,6 @@
         .badge-integridade.ok { background: #1a3a2a; color: #9ece6a; }
         .badge-integridade.fail { background: #3a1a1a; color: #f7768e; }
 
-        /* ⬇️ NOVA ESTRUTURA DO GRID E DAS BOLINHAS ⬇️ */
         .grid-jogos {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -67,7 +65,7 @@
             border-radius: 4px;
             display: flex;
             align-items: center;
-            gap: 6px; /* Espaço entre os números */
+            gap: 6px;
         }
         .jogo-item .num {
             color: #7aa2f7;
@@ -89,16 +87,12 @@
             font-size: 0.85rem;
             font-weight: bold;
             font-family: monospace;
-            flex-shrink: 0; /* Impede a bolinha de ser esmagada */
+            flex-shrink: 0;
         }
-        /* ⬆️ FIM DA NOVA ESTRUTURA ⬆️ */
 
-        .empty-state { 
-            text-align: center; padding: 40px; color: #888; font-size: 1rem;
-        }
+        .empty-state { text-align: center; padding: 40px; color: #888; font-size: 1rem; }
         .loading { text-align: center; padding: 15px; color: #888; }
 
-        /* ⬇️ Estilos do Backtest */
         .backtest-box {
             margin-top: 20px;
             padding-top: 20px;
@@ -178,10 +172,14 @@
     </style>
 </head>
 <body>
+    <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
+    <div class="overlay-mobile" id="overlayMobile"></div>
 
-    <!-- MENU LATERAL -->
-    <aside class="sidebar">
-        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            🎰 <span>MegaSena SaaS</span>
+            <button class="btn-fechar" id="btnFecharMenu" aria-label="Fechar menu">✕</button>
+        </div>
         <nav>
             <a href="index.html">🏠 Início</a>
             <a href="fechamento.html">🎯 Fechamento</a>
@@ -195,7 +193,6 @@
         </nav>
     </aside>
 
-    <!-- CONTEÚDO -->
     <main class="content">
         <h1>📜 Meu Histórico de Jogos</h1>
         
@@ -218,8 +215,7 @@
     </main>
 
     <script>
-       //const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
+        const API_URL = 'https://megasena-api.runasp.net';
         
         const token = localStorage.getItem('token');
         if (!token) {
@@ -334,16 +330,14 @@
                 ? '<span class="badge-integridade ok">✓ Integridade OK</span>'
                 : '<span class="badge-integridade fail">✗ Hash adulterado</span>';
 
-            // ⬇️ AQUI ESTÁ A MÁGICA DA NOVA FORMATAÇÃO ⬇️
             const jogosHtml = data.jogos.map((jogo, idx) => {
                 const numerosHtml = jogo
-                    .sort((a, b) => a - b) // Garante a ordem
+                    .sort((a, b) => a - b)
                     .map(n => `<span class="bolinha-mini">${n.toString().padStart(2, '0')}</span>`)
                     .join('');
                 return `<div class="jogo-item"><span class="num">#${idx + 1}</span>${numerosHtml}</div>`;
             }).join('');
 
-            // Guarda os jogos no dataset da linha pra usar no backtest
             tr.dataset.jogosJson = JSON.stringify(data.jogos);
 
             tr.innerHTML = `
@@ -357,7 +351,6 @@
                             ${jogosHtml}
                         </div>
 
-                        <!-- ⬇️ SEÇÃO DE BACKTEST COM EXPLICAÇÃO -->
                         <div class="backtest-box">
                             <div class="backtest-explicacao">
                                 <strong>🤔 O que é o Backtest?</strong><br>
@@ -432,7 +425,7 @@
                             <div class="label">Senas</div>
                         </div>
                         <div class="stat-card-backtest">
-                            <div class="num-grande custo">R$ ${data.custoTotal.toFixed(2)}</div>
+                            <div class="num-grande custo">R$ ${data.custoSimuladoAcumulado.toFixed(2)}</div>
                             <div class="label">Custo simulado</div>
                         </div>
                     </div>
@@ -450,6 +443,30 @@
         }
 
         carregarHistorico();
+    </script>
+    <script>
+        // Script do Hamburger
+        (function() {
+            const btnAbrir = document.getElementById('btnAbrirMenu');
+            const btnFechar = document.getElementById('btnFecharMenu');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlayMobile');
+
+            if (!sidebar || !overlay) return;
+
+            function fecharMenu() {
+                sidebar.classList.remove('aberta');
+                overlay.classList.remove('ativo');
+            }
+
+            if (btnAbrir) btnAbrir.addEventListener('click', () => {
+                sidebar.classList.add('aberta');
+                overlay.classList.add('ativo');
+            });
+            
+            if (btnFechar) btnFechar.addEventListener('click', fecharMenu);
+            if (overlay) overlay.addEventListener('click', fecharMenu);
+        })();
     </script>
 </body>
 </html>

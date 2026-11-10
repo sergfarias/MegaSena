@@ -26,7 +26,7 @@ public sealed class TestarUniformidadeUseCase
                 freq[d]++;
 
         // Usa o serviço unificado
-        double chi2 = CalculadoraQuiQuadrado.Calcular(freq, n, N);
+        double chi2 = CalculadoraQuiQuadrado.Calcular(freq, n, universo.Dezenas);
 
         int gl = N - 1;
         double p = DistribuicaoQuiQuadrado.PValor(chi2, gl);

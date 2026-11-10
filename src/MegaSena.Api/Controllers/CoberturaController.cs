@@ -1,7 +1,7 @@
 ﻿using MegaSena.Api.Models;
 using MegaSena.Application.CasosDeUso;
 using MegaSena.Application.Portas;
-using MegaSena.Application.Servicos;
+using MegaSena.Infrastructure.Seguranca;
 using MegaSena.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,17 +29,19 @@ public class CoberturaController : ControllerBase
     private readonly AuditoriaService _auditoriaService;
     private readonly ILoteRepository _loteRepository;
     private readonly ILogger<CoberturaController> _logger;
+    private readonly BacktestLoteUseCase _backtestUseCase;
 
     public CoberturaController(
         GerarCoberturaUseCase useCase,
         AuditoriaService auditoriaService,
         ILoteRepository loteRepository,
-        ILogger<CoberturaController> logger)
+        ILogger<CoberturaController> logger, BacktestLoteUseCase backtestUseCase)
     {
         _useCase = useCase;
         _auditoriaService = auditoriaService;
         _loteRepository = loteRepository;
         _logger = logger;
+        _backtestUseCase = backtestUseCase;
     }
 
     [HttpPost("gerar")]
@@ -185,7 +187,8 @@ public class CoberturaController : ControllerBase
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
             cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-            var resultado = new BacktestLoteUseCase().Executar(lote, concursos, janela, cts.Token);
+            //var resultado = new BacktestLoteUseCase().Executar(lote, concursos, janela, cts.Token);
+            var resultado = _backtestUseCase.Executar(lote, concursos, janela, cts.Token);
             return Ok(resultado);
         }
         catch (OperationCanceledException)

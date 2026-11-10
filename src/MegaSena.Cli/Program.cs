@@ -1,15 +1,12 @@
 ﻿using MegaSena.Application.CasosDeUso;
 using MegaSena.Application.Portas;
 using MegaSena.Domain;
-using MegaSena.Domain.Calculadora;
 using MegaSena.Infrastructure;
 using MegaSena.Infrastructure.Cobertura;   // <-- novo
-
 
 // --- Parsing de argumentos ---
 var cmd = args.FirstOrDefault() ?? "sortear";
 var opts = ParseArgs(args.Skip(1));
-
 
 int ultimos = opts.GetValueOrDefault("ultimos", 3);
 int menos = opts.GetValueOrDefault("menos", 4);
@@ -40,16 +37,36 @@ else
     gerador = new GeradorAleatorioRapido();
 }
 
+// NOVO: Criamos a Factory UMA ÚNICA VEZ para usar em todos os comandos.
+// Passamos o 'gerador' já instanciado e o 'seed' para o caso do físico.
+var geradorFactory = new GeradorDeSorteioFactory(
+    new GeradorAleatorioRapido(),
+    new SimuladorFisicoGerador(new ConfiguracaoFisica(), seed)
+);
+
 // --- Execução dos comandos ---
 Console.WriteLine($"Gerador: {gerador.Nome} | Universo: {universoFactory.Criar(ultimos, menos).Tamanho} bolas | Seed: {seed}");
+
+// Aviso de divergência entre CLI e API
+if (historico is HistoricoVazio && (ultimos > 0 || menos > 0))
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("⚠️  CLI: universo completo (60 dezenas). Use a API para universo reduzido pelo histórico.");
+    Console.ResetColor();
+}
+
 Console.WriteLine(new string('-', 50));
+
 
 switch (cmd)
 {
     case "sortear":
         {
-            var useCase = new GerarJogoUseCase(gerador, universoFactory, regra);
-            var resultado = useCase.Executar(ultimos, menos);
+            var useCase = new GerarJogoUseCase(geradorFactory, universoFactory);
+
+            // Agora o Executar recebe os 4 parâmetros
+            var resultado = useCase.Executar(ultimos, menos, fisico, maxPares);
+
             Console.WriteLine($"Jogo sorteado: {resultado.Jogo}");
             Console.WriteLine($"Tempo de geração: simulação concluída.");
             break;
@@ -79,8 +96,7 @@ switch (cmd)
     case "monte":
         {
             // Monte Carlo simplificado (apostas válidas contra sorteio real de 60 bolas)
-            var uAposta = universoFactory.Criar(ultimos, menos);
-            var useCase = new GerarJogoUseCase(gerador, universoFactory, regra);
+            var useCase = new GerarJogoUseCase(geradorFactory, universoFactory);
 
             int quadras = 0, quinas = 0, senas = 0;
             var rnd = seed == 0 ? new Random() : new Random(seed);
@@ -88,7 +104,7 @@ switch (cmd)
             Console.WriteLine($"Simulando {n:N0} sorteios...");
             for (int i = 0; i < n; i++)
             {
-                var aposta = useCase.Executar(ultimos, menos).Jogo;
+                var aposta = useCase.Executar(ultimos, menos, fisico, maxPares).Jogo;
                 var sorteioReal = SortearOficial(rnd);
                 int acertos = aposta.Dezenas().Count(sorteioReal.Contem);
 
@@ -169,11 +185,12 @@ switch (cmd)
 
             Console.WriteLine($"⏳ Gerando {quantidade:N0} jogos... Aguarde.");
 
-            var uc = new GerarLoteJogosUseCase(gerador, universoFactory, regra);
+            var uc = new GerarLoteJogosUseCase(geradorFactory, universoFactory);
 
             try
             {
-                var jogos = uc.Executar(quantidade, ultimos, menos).ToList();
+                // Agora o Executar recebe 4 parâmetros (quantidade, ultimos, menos, maxPares)
+                var jogos = uc.Executar(quantidade, ultimos, menos, maxPares).ToList();
 
                 using (var writer = new StreamWriter(caminhoSaida))
                 {
@@ -202,6 +219,8 @@ switch (cmd)
         Console.WriteLine("Uso: dotnet run -- [sortear|contar|uniformidade|monte|cobertura|prob|comparar|gerar-lote] [--fisico] [--ultimos N] [--menos N] [--n N] [--seed N]");
         Console.WriteLine("     cobertura: --dezenas 1,3,5,7,9,11,13,15 --garantia 4 --universo 4");
         Console.WriteLine("     gerar-lote: --quantidade 100");
+        Console.WriteLine("     Nota: a CLI NÃO consulta o banco. O universo é sempre completo (60 dezenas).");
+        Console.WriteLine("     Para universo reduzido, use a API (/api/MegaSena/sortear).");
         break;
 }
 

@@ -154,7 +154,7 @@ public class ImportadorConcursosService : BackgroundService
             var n = todos.Count;
 
             // Usa a calculadora unificada (Seção 2.1)
-            double chi2 = CalculadoraQuiQuadrado.Calcular(freq, n, universo.Tamanho);
+            double chi2 = CalculadoraQuiQuadrado.Calcular(freq, n, universo.Dezenas); 
             int gl = universo.Tamanho - 1;
             double p = DistribuicaoQuiQuadrado.PValor(chi2, gl);
 

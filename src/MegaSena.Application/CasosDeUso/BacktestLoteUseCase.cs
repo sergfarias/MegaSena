@@ -7,7 +7,7 @@ namespace MegaSena.Application.CasosDeUso;
 public sealed record ResultadoBacktest(
     int Janela,
     int TotalJogosLote,
-    decimal CustoTotal,
+    decimal CustoSimuladoAcumulado,
     int Quadras,
     int Quinas,
     int Senas,
@@ -84,7 +84,7 @@ public sealed class BacktestLoteUseCase
             Janela: ultimos.Count,
             TotalJogosLote: lote.Count,
             //CustoTotal: lote.Count * PrecoJogoSimples * ultimos.Count,
-            CustoTotal: PrecoAposta.Calcular(6) * lote.Count * ultimos.Count, // <-- Alterado
+            CustoSimuladoAcumulado: PrecoAposta.Calcular(6) * lote.Count * ultimos.Count,
             Quadras: totalQuadras,
             Quinas: totalQuinas,
             Senas: totalSenas,

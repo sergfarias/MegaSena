@@ -35,7 +35,6 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
         throw new InvalidOperationException("Nenhum jogo válido possível neste universo/regra.");
     }
 
-    // O MÉTODO QUE ESTAVA FALTANDO:
     private int[] ExecutarSimulacao(int[] dezenas)
     {
         var bolas = dezenas.Select(d => new Bola(d, _config.RaioGlobo)).ToArray();
@@ -52,30 +51,25 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
         }
 
         // Tempo de mistura inicial (1.5s de pura física caótica)
-        //while (tempo < 1.5)
-        int tentativas = 0;
-        while (sorteadas.Count < 6 && tentativas < 1000)
+        tempo = 0;
+        while (tempo < 1.5)
         {
-            tentativas++;
             StepFisica(bolas, sorteadas);
             tempo += Dt;
         }
 
-        // Agora começam as retiradas. 
+        // Agora começam as retiradas.
         // A cada 0.3 segundos, uma bola é "sugada" para fora.
-        int tentativasRetirada = 0;
-        //while (sorteadas.Count < 6)
-        while (sorteadas.Count < 6 && tentativasRetirada < 1000) // <-- Teto
+        while (sorteadas.Count < 6)
         {
-            tentativasRetirada++;
-            // Escolhe uma bola aleatória que ainda está no globo
             var disponiveis = bolas.Where(b => !sorteadas.Contains(b.Dezena)).ToArray();
-            var bolaSorteada = disponiveis[_rnd.Next(disponiveis.Length)];
+            if (disponiveis.Length == 0) break; // Segurança extra
 
+            var bolaSorteada = disponiveis[_rnd.Next(disponiveis.Length)];
             sorteadas.Add(bolaSorteada.Dezena);
             bolaSorteada.Pos = new Vector2(1000, 1000); // Move para fora do globo
 
-            // Roda a física por mais 0.3s para as outras bolas se moverem (efeito de agitação)
+            // Roda a física por mais 0.3s para as outras bolas se moverem
             double tempoRetirada = 0;
             while (tempoRetirada < 0.3)
             {
