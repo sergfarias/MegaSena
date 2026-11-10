@@ -428,13 +428,16 @@
     </footer>
 
     <script>
+	    //const API_URL = 'https://localhost:7155';
+		const API_URL = 'http://megasena-api.runasp.net';
+       
         async function carregarUltimoSorteio() {
             const container = document.getElementById('ultimoSorteio');
             const info = document.getElementById('infoSorteio');
 
             try {
                 // CHAMADA PARA A SUA API, que vai contornar o bloqueio de IP
-                const response = await fetch('https://localhost:7155/api/MegaSena/ultimo-sorteio');
+                const response = await fetch('${API_URL}/api/MegaSena/ultimo-sorteio');
                 
                 if (!response.ok) throw new Error('Erro na API: ' + response.status);
 

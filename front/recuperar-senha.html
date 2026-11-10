@@ -38,7 +38,9 @@
     </div>
 
     <script>
-        const API = 'https://localhost:5001'; // Ajuste para a URL da sua API
+       //const API_URL = 'https://localhost:7155';
+		const API_URL = 'http://megasena-api.runasp.net';
+       
         const formEsqueci = document.getElementById('formEsqueci');
         const formReset = document.getElementById('formReset');
         const msg = document.getElementById('mensagem');
@@ -55,7 +57,7 @@
             e.preventDefault();
             const email = document.getElementById('email').value;
             try {
-                const r = await fetch(`${API}/api/Auth/esqueci-senha`, {
+                const r = await fetch(`${API_URL}/api/Auth/esqueci-senha`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
@@ -79,7 +81,7 @@
             const token = document.getElementById('token').value;
             const novaSenha = document.getElementById('novaSenha').value;
             try {
-                const r = await fetch(`${API}/api/Auth/resetar-senha`, {
+                const r = await fetch(`${API_URL}/api/Auth/resetar-senha`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token, novaSenha })

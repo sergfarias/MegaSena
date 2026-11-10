@@ -218,7 +218,9 @@
     </main>
 
     <script>
-        const API = 'https://localhost:7155';
+       //const API_URL = 'https://localhost:7155';
+		const API_URL = 'http://megasena-api.runasp.net';
+        
         const token = localStorage.getItem('token');
         if (!token) {
             window.location.href = 'login.html';
@@ -234,7 +236,7 @@
 
         async function carregarHistorico() {
             try {
-                const response = await fetch(`${API}/api/Auditoria/meus-lotes`, {
+                const response = await fetch(`${API_URL}/api/Auditoria/meus-lotes`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -309,7 +311,7 @@
             }
 
             try {
-                const response = await fetch(`${API}/api/Auditoria/meus-lotes/${hash}`, {
+                const response = await fetch(`${API_URL}/api/Auditoria/meus-lotes/${hash}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -386,7 +388,7 @@
             container.innerHTML = '<p style="color: #888;">Verificando 500 concursos reais, aguarde...</p>';
 
             try {
-                const response = await fetch(`${API}/api/Cobertura/backtest?janela=500`, {
+                const response = await fetch(`${API_URL}/api/Cobertura/backtest?janela=500`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -311,6 +311,9 @@
     </main>
 
     <script>
+		//const API_URL = 'https://localhost:7155';
+		const API_URL = 'http://megasena-api.runasp.net';
+        
         const token = localStorage.getItem('token');
         if (!token) {
             alert("Você precisa estar logado para acessar o fechamento.");
@@ -390,7 +393,7 @@
             };
 
             try {
-                const response = await fetch('https://localhost:7155/api/Cobertura/gerar', {
+                const response = await fetch('${API_URL}/api/Cobertura/gerar', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
