@@ -6,4 +6,4 @@ public sealed record Cobertura(
     int Garantia,                   // t: 4, 5 ou 6
     int UniversoSorteado,           // k: quantas dezenas são sorteadas (4,5,6)
     IReadOnlyList<Jogo> Jogos,      // solução
-    bool MinimoProvado = false);    // <-- NOVO CAMPO (com valor padrão)
+    bool MinimoProvado = false);    

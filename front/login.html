@@ -60,6 +60,7 @@
         .link a:hover { text-decoration: underline; }
         #erro { color: #f7768e; text-align: center; font-size: 0.9rem; margin-bottom: 10px; display: none; }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
 
@@ -69,8 +70,8 @@
         
         <div id="camposLogin">
             <div class="form-group">
-                <label>Login</label>
-                <input type="text" id="login" placeholder="Seu usuário">
+                <label>Login ou e-mail</label>
+                <input type="text" id="login" placeholder="Seu login ou e-mail">
             </div>
             <div class="form-group">
                 <label>Senha</label>
@@ -102,7 +103,7 @@
             </div>
             <div class="form-group">
                 <label>Senha</label>
-                <input type="password" id="regSenha" placeholder="Crie uma senha forte">
+                <input type="password" id="regSenha" placeholder="Mínimo 8 caracteres">
             </div>
             <button onclick="fazerRegistro()">Criar Conta</button>
             <div class="link">
@@ -113,9 +114,7 @@
 
     <script>
         // Testando LOCAL
-        //const API_URL = 'https://localhost:7155';
-        const API_URL = 'https://megasena-api.runasp.net';
-	   
+
         function mostrarRegistro() {
             document.getElementById('camposLogin').style.display = 'none';
             document.getElementById('camposRegistro').style.display = 'block';
@@ -152,6 +151,7 @@
                 if (!response.ok) throw new Error(data.erro || "Erro no login.");
 
                 localStorage.setItem('token', data.token);
+                if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
                 localStorage.setItem('usuarioNome', data.usuario.nome);
 
                 window.location.href = 'fechamento.html';
@@ -187,7 +187,8 @@
 
                 if (!response.ok) throw new Error(data.erro || "Erro no registro.");
 
-                alert("Conta criada com sucesso! Faça login.");
+                // S2: a API responde igual para cadastro novo e e-mail repetido; mostra a mensagem dela, sem afirmar que a conta foi criada
+                alert(data.mensagem || "Cadastro recebido. Faça login.");
                 mostrarLogin();
 
             } catch (error) {
@@ -196,5 +197,6 @@
             }
         }
     </script>
+    <script src="config.js"></script>
 </body>
 </html>

@@ -1,8 +1,11 @@
+using MegaSena.Infrastructure.Data;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Xunit;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace MegaSena.Api.Tests;
 
@@ -41,8 +44,13 @@ internal static class AuthHelper
 public class SegurancaContaTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public SegurancaContaTests(CustomWebApplicationFactory factory) => _client = factory.CreateClient();
+    public SegurancaContaTests(CustomWebApplicationFactory factory)
+    {
+        _factory = factory; 
+        _client = factory.CreateClient();
+    }
 
     [Fact]
     public async Task EsqueciSenha_ForaDeDevelopment_NaoDevolveToken()
@@ -72,6 +80,34 @@ public class SegurancaContaTests : IClassFixture<CustomWebApplicationFactory>
         var resp = await _client.GetAsync("/api/Contato/mensagens");
         Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task TokenDeContaDesativada_DeveRetornarUnauthorized()
+    {
+        var (token, email) = await AuthHelper.RegistrarELogarAsync(_client);
+
+        // Desativa o usuário direto no banco InMemory
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            // Busca o usuário e garante que não é nulo
+            var user = await db.Usuarios.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user != null)
+            {
+                user.Ativo = false;
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // Tenta acessar um endpoint protegido com o token antigo
+        AuthHelper.Autenticar(_client, token);
+        var resp = await _client.GetAsync("/api/Auditoria/meus-lotes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
 }
 
 public class SegurancaLoteTests : IClassFixture<CustomWebApplicationFactory>

@@ -163,6 +163,7 @@
         .info-extra a { color: var(--primary); text-decoration: none; }
         .info-extra a:hover { text-decoration: underline; }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
 
@@ -173,8 +174,14 @@
     </header>
 
     <!-- MENU LATERAL (Só aparece se estiver logado) -->
+    <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
+    <div class="overlay-mobile" id="overlayMobile"></div>
+
     <aside class="sidebar" id="sidebar" style="display: none;">
-        <div class="logo">🎰 <span>MegaSena SaaS</span></div>
+        <div class="logo">
+            🎰 <span>MegaSena SaaS</span>
+            <button class="btn-fechar" id="btnFecharMenu" aria-label="Fechar menu">✕</button>
+        </div>
         <nav>
             <a href="index.html">🏠 Início</a>
             <a href="fechamento.html">🎯 Fechamento</a>
@@ -222,18 +229,19 @@
                 <div class="canais-diretos">
                     <h3>Prefere falar direto?</h3>
                     <p style="font-size: 0.85rem; color: #888; margin-bottom: 15px;">
-                        Atendimento de Segunda a Sexta, das 9h às 18h.
+                        Atendimento em horário comercial.
                     </p>
 
                     <a href="https://wa.me/5521987702255?text=Ol%C3%A1%21%20Vim%20pelo%20site%20da%20MegaSena%20SaaS." 
                        target="_blank" class="btn-social btn-whatsapp">
                         💬 WhatsApp Comercial
                     </a>
-
+					<!--
                     <a href="https://t.me/seu_usuario_telegram" 
                        target="_blank" class="btn-social btn-telegram">
                         ✈️ Telegram
                     </a>
+					-->
                 </div>
 
             </div>
@@ -245,8 +253,7 @@
     </main>
 
     <script>
-        //const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
+
         const token = localStorage.getItem('token');
 
         // ==========================================
@@ -264,12 +271,7 @@
             sidebar.style.display = 'none';
             headerPublico.style.display = 'flex';
             document.body.classList.add('publico');
-        }
-
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('usuarioNome');
-            window.location.href = 'login.html';
+            document.getElementById('btnAbrirMenu').style.display = 'none'; // visitante não tem menu
         }
 
         // ==========================================
@@ -320,6 +322,20 @@
                 btn.textContent = 'Enviar Mensagem';
             }
         });
+
+        // Script do Hamburger
+        (function() {
+            const btnAbrir = document.getElementById('btnAbrirMenu');
+            const btnFechar = document.getElementById('btnFecharMenu');
+            const overlay = document.getElementById('overlayMobile');
+            if (!sidebar || !overlay) return;
+            function fecharMenu() { sidebar.classList.remove('aberta'); overlay.classList.remove('ativo'); }
+            if (btnAbrir) btnAbrir.addEventListener('click', () => { sidebar.classList.add('aberta'); overlay.classList.add('ativo'); });
+            if (btnFechar) btnFechar.addEventListener('click', fecharMenu);
+            overlay.addEventListener('click', fecharMenu);
+        })();
     </script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </body>
 </html>

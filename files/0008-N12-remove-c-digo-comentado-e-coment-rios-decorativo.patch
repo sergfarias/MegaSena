@@ -1,0 +1,133 @@
+From 1ce7552ffafffe96884b3918a0c05d24f6a76776 Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 8/8] =?UTF-8?q?N12:=20remove=20c=C3=B3digo=20comentado=20e?=
+ =?UTF-8?q?=20coment=C3=A1rios=20decorativos?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../Repositories/HistoricoDbRepository.cs     | 27 +------------------
+ .../Repositories/LoteRepository.cs            | 19 +------------
+ .../SimuladorFisicoGerador.cs                 |  2 +-
+ .../HistoricoDbRepositoryTests.cs             |  4 +--
+ 4 files changed, 4 insertions(+), 48 deletions(-)
+
+diff --git a/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs b/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs
+index e7f003d..41ffb93 100644
+--- a/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs
++++ b/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs
+@@ -44,36 +44,11 @@ public class HistoricoDbRepository : IHistoricoRepository
+         return resultado;
+     }
+ 
+-    //public IReadOnlyList<int> ObterMenosSorteadas(int quantidade)
+-    //{
+-    //    if (quantidade <= 0) return Array.Empty<int>();
+-    //    // Busca todas as dezenas de todos os concursos salvos
+-    //    var todasDezenas = _context.Concursos
+-    //        .Select(c => c.DezenasSorteadas)
+-    //        .ToList();
+-    //    // Conta a frequência de cada dezena (1 a 60)
+-    //    var frequencias = new int[61];
+-    //    foreach (var dezenasStr in todasDezenas)
+-    //    {
+-    //        if (string.IsNullOrWhiteSpace(dezenasStr)) continue;
+-    //        foreach (var dStr in dezenasStr.Split(','))
+-    //        {
+-    //            if (int.TryParse(dStr.Trim(), out int d) && d >= 1 && d <= 60)
+-    //                frequencias[d]++;
+-    //        }
+-    //    }
+-    //    // Retorna as N dezenas que menos saíram (ordenadas pela frequência)
+-    //    return Enumerable.Range(1, 60)
+-    //        .OrderBy(d => frequencias[d])
+-    //        .Take(quantidade)
+-    //        .ToList();
+-    //}
+-
+     public IReadOnlyList<int> ObterMenosSorteadas(int quantidade)
+     {
+         if (quantidade <= 0) return Array.Empty<int>();
+ 
+-        // ✅ CACHE DE 1 HORA AQUI
++        // Cache de 1 hora; o importador invalida a chave quando entram concursos novos
+         var frequencias = _cache.GetOrCreate("freq-dezenas", entry =>
+         {
+             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
+diff --git a/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs b/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs
+index 75e013c..98463f3 100644
+--- a/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs
++++ b/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs
+@@ -67,24 +67,7 @@ public class LoteRepository : ILoteRepository
+ 
+     public async Task<IEnumerable<LoteHistoricoModel>> ObterLotesPorUsuarioAsync(Guid usuarioId)
+     {
+-        // 1. Busca a Entidade no banco
+-        //var lotesDoBanco = await _context.Jogos
+-        //    .Include(j => j.Itens)
+-        //    .Where(j => j.UsuarioId == usuarioId)
+-        //    .OrderByDescending(j => j.DataCriacao)
+-        //    .ToListAsync();
+-
+-        //// 2. Converte (Mapeia) de Entidade para o Model da Application
+-        //return lotesDoBanco.Select(l => new LoteHistoricoModel
+-        //{
+-        //    Id = l.Id,
+-        //    Hash = l.Hash,
+-        //    DataCriacao = l.DataCriacao,
+-        //    QuantidadeJogos = l.Itens.Count,
+-        //    JsonOriginal = l.JsonOriginal
+-        //}).ToList();
+-
+-        // ✅ DEPOIS (projeta direto sem carregar JSON ou Include)
++        // Projeta direto: não carrega o JSON nem os itens, só conta os jogos
+         return await _context.Jogos
+             .AsNoTracking()
+             .Where(j => j.UsuarioId == usuarioId)
+diff --git a/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs b/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs
+index 11a9650..26d91f2 100644
+--- a/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs
++++ b/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs
+@@ -22,7 +22,7 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
+     {
+         var dezenas = universo.Dezenas.ToArray();
+ 
+-        // ✅ ADICIONAR ESTA TRAVA ANTES DO LOOP
++        // Trava: regra impossível para este universo (evita milhares de simulações inúteis)
+         if (regra is MaximoParesConsecutivos maxRegra &&
+             ContadorDeJogosValidos.Contar(universo, maxRegra.Maximo) == 0)
+         {
+diff --git a/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs b/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs
+index e24d512..ee69efb 100644
+--- a/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs
++++ b/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs
+@@ -18,7 +18,7 @@ public class HistoricoDbRepositoryTests
+         return new AppDbContext(options);
+     }
+ 
+-    // ✅ Helper para criar o repositório com o Cache vazio exigido
++    // Cria o repositório com um cache vazio
+     private static HistoricoDbRepository CriarRepo(AppDbContext db)
+     {
+         var cache = new MemoryCache(new MemoryCacheOptions());
+@@ -70,7 +70,6 @@ public class HistoricoDbRepositoryTests
+     public void ObterUltimosSorteios_QuantidadeInvalida_DeveRetornarVazio(int quantidade)
+     {
+         using var db = CriarDb();
+-        // ✅ CORRIGIDO: usa o helper CriarRepo(db) em vez de new HistoricoDbRepository(db)
+         Assert.Empty(CriarRepo(db).ObterUltimosSorteios(quantidade));
+     }
+ 
+@@ -78,7 +77,6 @@ public class HistoricoDbRepositoryTests
+     public void ObterUltimosSorteios_BancoVazio_DeveRetornarVazio()
+     {
+         using var db = CriarDb();
+-        // ✅ CORRIGIDO: usa o helper CriarRepo(db) em vez de new HistoricoDbRepository(db)
+         Assert.Empty(CriarRepo(db).ObterUltimosSorteios(3));
+     }
+ 
+-- 
+2.43.0
+

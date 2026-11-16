@@ -1,0 +1,303 @@
+:root {
+    --bg-color: #1a1b26;
+    --panel-bg: #24283b;
+    --text-main: #c0caf5;
+    --primary: #7aa2f7;
+    --primary-hover: #2ac3de;
+    --success: #9ece6a;
+    --border: #414868;
+    --danger: #f7768e;
+	--warning: #e0af68;
+}
+
+* { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ========================================== */
+/* MENU LATERAL (Sidebar)                     */
+/* ========================================== */
+.sidebar {
+    width: 250px;
+    background-color: var(--panel-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    position: fixed;
+    height: 100vh;
+    z-index: 100;
+    transition: transform 0.3s ease;
+}
+
+.sidebar .logo {
+    padding: 0 20px 20px 20px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--success);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    /* gap: 10px; <-- REMOVIDO para usar a margem automática no botão */
+}
+
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.sidebar a {
+    color: #ccc;
+    text-decoration: none;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.sidebar a:hover { background-color: rgba(122, 162, 247, 0.1); color: var(--primary); }
+.sidebar a.active { background-color: rgba(122, 162, 247, 0.15); color: var(--primary); border-left-color: var(--primary); font-weight: bold; }
+.sidebar .btn-sair { margin-top: auto; color: var(--danger); border-top: 1px solid var(--border); padding-top: 20px; margin-bottom: 10px; }
+
+/* ========================================== */
+/* CONTEÚDO PRINCIPAL                         */
+/* ========================================== */
+.content {
+    margin-left: 250px;
+    flex-grow: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: calc(100% - 250px);
+    transition: margin-left 0.3s ease;
+}
+
+h1 { font-size: 1.6rem; margin-bottom: 20px; text-align: center; color: #fff; }
+h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+.panel {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+button:hover { background-color: var(--primary-hover); }
+button:disabled { background-color: var(--border); cursor: not-allowed; }
+
+/* ========================================== */
+/* FORMULÁRIOS                                */
+/* ========================================== */
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; }
+.form-group select, .form-group input {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    border-radius: 4px;
+}
+
+/* ========================================== */
+/* UTILITÁRIOS                                */
+/* ========================================== */
+.bolinha {
+    background-color: var(--panel-bg);
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* ========================================== */
+/* BOTÕES MOBILE (Abrir e Fechar)             */
+/* ========================================== */
+
+/* Botão Fechar (Fica dentro do logo) */
+.btn-fechar {
+    display: none; /* Escondido no desktop */
+    background: transparent;
+    color: var(--danger);
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 32px !important;
+    height: 32px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    margin-left: auto; /* <-- ISSO EMPURRA O BOTÃO PARA A DIREITA */
+}
+.btn-fechar:hover { color: #ff9e9e; background: transparent; }
+
+/* Botão Abrir (Flutuante no topo esquerdo) */
+.btn-abrir {
+    display: none; /* Escondido no desktop */
+    background: var(--panel-bg);
+    color: var(--primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 101;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    width: 48px !important;
+    height: 48px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+.btn-abrir:hover { background: var(--primary); color: #fff; }
+
+/* Overlay escuro quando o menu mobile está aberto */
+.overlay-mobile {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+}
+.overlay-mobile.ativo { display: block; }
+
+/* ========================================== */
+/* RESPONSIVIDADE MOBILE (< 768px)            */
+/* ========================================== */
+@media (max-width: 768px) {
+    /* Sidebar sai da tela por padrão */
+    .sidebar {
+        transform: translateX(-100%);
+        width: 280px;
+        box-shadow: 5px 0 20px rgba(0,0,0,0.5);
+    }
+
+    /* Quando aberta, entra na tela */
+    .sidebar.aberta {
+        transform: translateX(0);
+    }
+
+    /* Mostra o botão de abrir APENAS quando o menu NÃO está aberto */
+    .btn-abrir {
+        display: flex;
+    }
+    .sidebar.aberta ~ .btn-abrir {
+        display: none !important;
+    }
+
+    /* Mostra o botão de fechar quando o menu está aberto */
+    .sidebar.aberta .btn-fechar {
+        display: flex;
+    }
+
+    /* Conteúdo ocupa a tela inteira */
+    .content {
+        margin-left: 0 !important; 
+        width: 100% !important; 
+        padding: 80px 15px 20px 15px !important; 
+    }
+
+    /* Títulos menores */
+    h1 { font-size: 1.3rem; }
+    h2 { font-size: 1.1rem; }
+
+    /* Painéis ocupam toda a largura */
+    .panel { padding: 15px; }
+
+    /* Tabelas com scroll horizontal */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Ajustes gerais de fontes */
+    .sidebar a { font-size: 1rem; padding: 14px 20px; }
+}
+
+/* Telas muito pequenas (< 400px) */
+@media (max-width: 400px) {
+    .content { padding: 75px 10px 15px 10px !important; }
+    h1 { font-size: 1.1rem; }
+    .panel { padding: 12px; }
+    .btn-abrir { width: 42px !important; height: 42px; font-size: 1.2rem; }
+}
+
+
+/* =========================================
+   U12 - Acessibilidade (Focus Visible)
+   ========================================= */
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* =========================================
+   U13 - Responsividade (Mobile / Sidebar)
+   ========================================= */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1000;
+    }
+    
+    .sidebar.aberta {
+        transform: translateX(0);
+    }
+
+    .content {
+        margin-left: 0 !important;
+        padding: 15px;
+    }
+
+    /* Se não existir, precisamos garantir que o overlay funcione */
+    .overlay-mobile.ativo {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 999;
+    }
+}

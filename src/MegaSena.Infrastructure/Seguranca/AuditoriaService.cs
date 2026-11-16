@@ -5,12 +5,6 @@ namespace MegaSena.Infrastructure.Seguranca;
 
 public class AuditoriaService
 {
-    // Mantido por compatibilidade caso algo ainda chame
-    public string GerarHashDosJogos(string jsonJogos)
-    {
-        return GerarHashAuditoria(jsonJogos);
-    }
-
     public string GerarHashAuditoria(string jogosJson)
     {
         if (string.IsNullOrWhiteSpace(jogosJson))

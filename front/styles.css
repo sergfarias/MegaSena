@@ -7,6 +7,7 @@
     --success: #9ece6a;
     --border: #414868;
     --danger: #f7768e;
+	--warning: #e0af68;
 }
 
 * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
@@ -257,4 +258,13 @@ button:disabled { background-color: var(--border); cursor: not-allowed; }
     h1 { font-size: 1.1rem; }
     .panel { padding: 12px; }
     .btn-abrir { width: 42px !important; height: 42px; font-size: 1.2rem; }
+}
+
+
+/* =========================================
+   U12 - Acessibilidade (Focus Visible)
+   ========================================= */
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }

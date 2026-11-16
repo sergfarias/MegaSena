@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using MegaSena.Application.Models;
 
 namespace MegaSena.Application.Servicos;
 
@@ -12,7 +13,7 @@ public class ResultadoService
         _httpClient = httpClient;
     }
 
-    public async Task<object> ObterUltimoSorteioAsync()
+    public async Task<ResultadoUltimoSorteio> ObterUltimoSorteioAsync()
     {
         try
         {
@@ -36,22 +37,13 @@ public class ResultadoService
                 dezenas.Add(int.Parse(d.GetString()!));
             }
 
-            return new
-            {
-                Concurso = numero,
-                Data = dataApuracao,
-                Dezenas = dezenas,
-                Sucesso = true
-            };
+            return new ResultadoUltimoSorteio(true, numero, dataApuracao, dezenas);
         }
         catch (Exception)
         {
-            return new
-            {
-                Sucesso = false,
-                Erro = "Não foi possível obter o último sorteio no momento."
-            };
+            return new ResultadoUltimoSorteio(false, Erro: "Não foi possível obter o último sorteio no momento.");
         }
     }
 }
+
 

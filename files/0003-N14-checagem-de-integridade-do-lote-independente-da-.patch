@@ -1,0 +1,71 @@
+From b0059fe2fce8450f0bfc4c6664842827e19be96f Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 3/8] N14: checagem de integridade do lote independente da
+ ordem dos itens (+ teste do caminho feliz)
+
+---
+ .../Controllers/AuditoriaController.cs        |  6 ++++-
+ tests/MegaSena.Api.Tests/ContratosTests.cs    | 25 +++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/MegaSena.Api/Controllers/AuditoriaController.cs b/src/MegaSena.Api/Controllers/AuditoriaController.cs
+index bcf0726..4a8a8dc 100644
+--- a/src/MegaSena.Api/Controllers/AuditoriaController.cs
++++ b/src/MegaSena.Api/Controllers/AuditoriaController.cs
+@@ -99,13 +99,17 @@ public class AuditoriaController : ControllerBase
+ 
+                 if (payloadJson != null && payloadJson.Jogos != null)
+                 {
+-                    // Normaliza para string: ordena as dezenas e junta com vírgula (ex: "01,02,03,04,05,06")
++                    // Normaliza para string: ordena as dezenas e junta com vírgula (ex: "1,2,3,4,5,6").
++                    // A lista também é ordenada: o banco não garante a ordem dos itens (Id é GUID aleatório),
++                    // e a integridade depende do conjunto de jogos, não da ordem em que são devolvidos.
+                     var jogosDoJson = payloadJson.Jogos
+                         .Select(j => string.Join(",", j.OrderBy(x => x)))
++                        .OrderBy(x => x, StringComparer.Ordinal)
+                         .ToList();
+ 
+                     var jogosDoBanco = resultado.Value.Jogos
+                         .Select(j => string.Join(",", j.OrderBy(x => x)))
++                        .OrderBy(x => x, StringComparer.Ordinal)
+                         .ToList();
+ 
+                     // Compara as duas listas de jogos
+diff --git a/tests/MegaSena.Api.Tests/ContratosTests.cs b/tests/MegaSena.Api.Tests/ContratosTests.cs
+index ac961bb..43330ce 100644
+--- a/tests/MegaSena.Api.Tests/ContratosTests.cs
++++ b/tests/MegaSena.Api.Tests/ContratosTests.cs
+@@ -130,4 +130,29 @@ public class ContratoGerarTests : IClassFixture<CustomWebApplicationFactory>
+         var criadoEm = json.GetProperty("criadoEmUtc").GetDateTime().ToUniversalTime();
+         Assert.True(Math.Abs((DateTime.UtcNow - criadoEm).TotalMinutes) < 5);
+     }
++
++    [Fact]
++    public async Task MeuLoteDetalhado_AposGerar_DeveConfirmarIntegridade()
++    {
++        var (token, _) = await AuthHelper.RegistrarELogarAsync(_client);
++        AuthHelper.Autenticar(_client, token);
++
++        var gerar = await _client.PostAsJsonAsync("/api/Cobertura/gerar", new
++        {
++            dezenas = new[] { 2, 5, 9, 14, 20, 31, 44 },
++            garantia = 6,
++            universoSorteado = 6,
++            maxPares = 1
++        });
++        Assert.Equal(HttpStatusCode.OK, gerar.StatusCode);
++
++        using var docGerar = JsonDocument.Parse(await gerar.Content.ReadAsStringAsync());
++        var hash = docGerar.RootElement.GetProperty("hashAuditoria").GetString();
++
++        var resp = await _client.GetAsync($"/api/Auditoria/meus-lotes/{hash}");
++        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
++
++        using var docLote = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
++        Assert.True(docLote.RootElement.GetProperty("integridadeConfirmada").GetBoolean());
++    }
+ }
+-- 
+2.43.0
+

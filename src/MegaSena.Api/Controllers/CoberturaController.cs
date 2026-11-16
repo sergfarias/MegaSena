@@ -1,8 +1,10 @@
 ﻿using MegaSena.Api.Models;
+using MegaSena.Api.Services;
 using MegaSena.Application.CasosDeUso;
 using MegaSena.Application.Portas;
 using MegaSena.Infrastructure.Seguranca;
 using MegaSena.Domain;
+using MegaSena.Domain.Calculadora;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -22,9 +24,7 @@ public class CoberturaController : ControllerBase
     private const int JanelaMin = 50;
     private const int JanelaMax = 2000;
 
-    // No máximo 2 cálculos simultâneos no servidor (cada solve de 20 dezenas usa ~300 MB)
-    private static readonly SemaphoreSlim _solver = new(2);
-
+    private readonly ISolverGate _gate;
     private readonly GerarCoberturaUseCase _useCase;
     private readonly AuditoriaService _auditoriaService;
     private readonly ILoteRepository _loteRepository;
@@ -32,11 +32,13 @@ public class CoberturaController : ControllerBase
     private readonly BacktestLoteUseCase _backtestUseCase;
 
     public CoberturaController(
+        ISolverGate gate,
         GerarCoberturaUseCase useCase,
         AuditoriaService auditoriaService,
         ILoteRepository loteRepository,
         ILogger<CoberturaController> logger, BacktestLoteUseCase backtestUseCase)
     {
+        _gate = gate;
         _useCase = useCase;
         _auditoriaService = auditoriaService;
         _loteRepository = loteRepository;
@@ -68,7 +70,7 @@ public class CoberturaController : ControllerBase
         if (request.MaxPares < 0 || request.MaxPares > 5)
             return BadRequest(new { Erro = "maxPares deve estar entre 0 e 5." });
 
-        // ---- ITEM 3: Novas validações específicas ----
+        // Novas validações específicas ----
         if (request.Garantia < 1 || request.Garantia > 6)
             return BadRequest(new { Erro = "A garantia deve estar entre 1 e 6." });
 
@@ -76,9 +78,16 @@ public class CoberturaController : ControllerBase
             return BadRequest(new { Erro = "O universo sorteado deve ser maior ou igual à garantia e no máximo 6." });
         // --------------------------------------------
 
-        // ---- Limite global de execuções simultâneas ----
-        if (!await _solver.WaitAsync(0))
-            return StatusCode(429, new { Erro = "Servidor ocupado. Tente novamente em instantes." });
+        // ---- Memória estimada + limite global de execuções simultâneas (N3) ----
+        var estimativa = EstimadorDeMemoria.BytesDoFechamento(
+            request.Dezenas.Count, request.Garantia, request.UniversoSorteado);
+
+        if (_gate.OrcamentoBytes > 0 && estimativa > _gate.OrcamentoBytes)
+            return BadRequest(new { Erro = "Este fechamento é grande demais para este servidor. Reduza o número de dezenas." });
+
+        using var vaga = _gate.TryEnter(estimativa);
+        if (vaga is null)
+            return ServidorOcupado.Resposta(this);
 
         try
         {
@@ -107,6 +116,8 @@ public class CoberturaController : ControllerBase
 
             var jogosArray = resultado.Cobertura.Jogos.Select(j => j.Dezenas().ToArray()).ToList();
 
+            var criadoEmUtc = DateTime.UtcNow;
+
             var payloadAuditoria = new
             {
                 Parametros = new
@@ -118,12 +129,16 @@ public class CoberturaController : ControllerBase
                 },
                 Jogos = jogosArray,
                 Nonce = Guid.NewGuid(),
-                CriadoEmUtc = DateTime.UtcNow
+                CriadoEmUtc = criadoEmUtc
             };
             var jsonOriginal = JsonSerializer.Serialize(payloadAuditoria);
             var hashString = _auditoriaService.GerarHashAuditoria(jsonOriginal);
 
             await _loteRepository.SalvarLoteAsync(usuarioId, hashString, jsonOriginal, jogosArray);
+
+            // Chance de a garantia valer: pelo menos 'universoSorteado' das 6 dezenas sorteadas
+            // estarem entre as dezenas escolhidas (hipergeométrica).
+            double chanceGarantiaValer = ProbabilidadeHipergeometrica.PeloMenos(request.Dezenas.Count, request.UniversoSorteado);
 
             return Ok(new
             {
@@ -132,8 +147,10 @@ public class CoberturaController : ControllerBase
                 TotalCombinacoes = resultado.TotalCombinacoesSorteaveis,
                 resultado.CombinacoesCobertas,
                 resultado.GarantiaTotal,
-                resultado.MinimoProvado, // <-- ITEM 4 adicionado aqui
+                resultado.MinimoProvado,
                 HashAuditoria = hashString,
+                CriadoEmUtc = criadoEmUtc,
+                ChanceGarantiaValer = chanceGarantiaValer,
                 Jogos = jogosArray
             });
         }
@@ -152,10 +169,6 @@ public class CoberturaController : ControllerBase
         {
             _logger.LogError(ex, "Erro ao gerar fechamento.");
             return StatusCode(500, new { Erro = "Erro interno ao calcular a cobertura." });
-        }
-        finally
-        {
-            _solver.Release();
         }
     }
 
@@ -187,7 +200,6 @@ public class CoberturaController : ControllerBase
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
             cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-            //var resultado = new BacktestLoteUseCase().Executar(lote, concursos, janela, cts.Token);
             var resultado = _backtestUseCase.Executar(lote, concursos, janela, cts.Token);
             return Ok(resultado);
         }

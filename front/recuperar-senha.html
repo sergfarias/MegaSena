@@ -4,23 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar Senha - MegaSena SaaS</title>
+    <!-- Puxa o CSS global com o tema escuro -->
+    <link rel="stylesheet" href="styles.css">
+    
     <style>
-        :root {
-            --bg-color: #1a1b26;
-            --panel-bg: #24283b;
-            --text-main: #c0caf5;
-            --primary: #7aa2f7;
-            --primary-hover: #2ac3de;
-            --success: #9ece6a;
-            --danger: #f7768e;
-            --border: #414868;
-        }
-
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
-
+        /* Estilos específicos para a tela de recuperação */
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -142,6 +131,7 @@
             margin: 20px 0;
         }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
     <div class="card">
@@ -176,20 +166,26 @@
     </div>
 
     <script>
-        const API_URL = 'https://megasena-api.runasp.net';
-       
+
         const formEsqueci = document.getElementById('formEsqueci');
         const formReset = document.getElementById('formReset');
         const divisorReset = document.getElementById('divisorReset');
         const msg = document.getElementById('mensagem');
 
-        // Verifica se já veio um token na URL (?token=...)
-        const urlParams = new URLSearchParams(window.location.search);
+        // Verifica se já veio um token na URL usando o HASH (#token=...)
+        const urlParams = new URLSearchParams(window.location.hash.slice(1));
+        
         if (urlParams.has('token')) {
+            // Preenche o input com o token da URL
             document.getElementById('token').value = urlParams.get('token');
+            
+            // Esconde o form de e-mail e mostra o de reset
             formEsqueci.style.display = 'none';
             divisorReset.style.display = 'none';
             formReset.style.display = 'block';
+
+            // Limpa o hash da URL por segurança (para não ficar no histórico)
+            history.replaceState(null, "", location.pathname);
         }
 
         formEsqueci.addEventListener('submit', async (e) => {
@@ -227,8 +223,15 @@
         formReset.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = formReset.querySelector('button');
+            
+            // Pega o token direto do input, que já foi preenchido no topo do script!
             const token = document.getElementById('token').value;
             const novaSenha = document.getElementById('novaSenha').value;
+
+            if (!token) {
+                exibirMensagem('Token não encontrado. Solicite um novo link.', false);
+                return;
+            }
 
             btn.disabled = true;
             btn.innerText = 'Redefinindo...';
@@ -259,5 +262,6 @@
             msg.style.display = 'block';
         }
     </script>
+    <script src="config.js"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ public class ResetarSenhaRequest
     [Required]
     public string Token { get; set; } = string.Empty;
 
-    [Required, MinLength(8, ErrorMessage = "A senha deve ter pelo menos 8 caracteres.")]
+    [Required, SenhaValida]
     public string NovaSenha { get; set; } = string.Empty;
 }
 
@@ -29,7 +29,7 @@ public class RegistroRequest
     [Required, EmailAddress, MaxLength(150)]
     public string Email { get; set; } = string.Empty;
 
-    [Required, MinLength(8, ErrorMessage = "A senha deve ter pelo menos 8 caracteres.")]
+    [Required, SenhaValida]
     public string Senha { get; set; } = string.Empty;
 }
 

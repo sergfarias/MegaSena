@@ -1,9 +1,21 @@
-﻿using System.Numerics;
+﻿
+using System.Numerics;
 using MegaSena.Application.Portas;
 using MegaSena.Domain;
 
 namespace MegaSena.Infrastructure;
 
+/// <summary>
+/// Gerador "físico": bolas dentro de um globo com gravidade, jato de ar, turbulência e colisões.
+/// A dezena sorteada é a da bola que estiver mais perto da abertura no topo do globo na hora da retirada,
+/// ou seja, o resultado SAI da simulação (antes ele vinha de um Random, e a física era só enfeite).
+///
+/// Por que continua uniforme: todas as bolas têm o mesmo raio e as mesmas regras, e as condições iniciais
+/// são sorteadas de forma idêntica para todas. Antes de simular, a ordem das bolas é embaralhada, para que a
+/// ordem de resolução das colisões não dependa do número da dezena. Assim as bolas são intercambiáveis, e
+/// qualquer uma tem a mesma chance de ser a mais próxima da abertura. A uniformidade pode ser conferida em
+/// GET /api/Estatisticas/uniformidade?fisico=true.
+/// </summary>
 public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
 {
     private readonly ConfiguracaoFisica _config;
@@ -22,6 +34,13 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
     {
         var dezenas = universo.Dezenas.ToArray();
 
+        // Trava: regra impossível para este universo (evita milhares de simulações inúteis)
+        if (regra is MaximoParesConsecutivos maxRegra &&
+            ContadorDeJogosValidos.Contar(universo, maxRegra.Maximo) == 0)
+        {
+            throw new InvalidOperationException("Regra de jogo impossível para este universo.");
+        }
+
         // TRAVA DE SEGURANÇA (Item 4.3 do PDF)
         for (int tentativa = 0; tentativa < 10_000; tentativa++)
         {
@@ -37,9 +56,8 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
 
     private int[] ExecutarSimulacao(int[] dezenas)
     {
-        var bolas = dezenas.Select(d => new Bola(d, _config.RaioGlobo)).ToArray();
-        var sorteadas = new List<int>();
-        double tempo = 0;
+        var bolas = dezenas.Select(d => new Bola(d, _config.DiametroBola / 2.0)).ToArray();
+        Embaralhar(bolas);
 
         // Condições iniciais: bolas espalhadas aleatoriamente no globo
         foreach (var bola in bolas)
@@ -50,47 +68,63 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
             bola.Vel = new Vector2((float)(_rnd.NextDouble() - 0.5), (float)(_rnd.NextDouble() - 0.5));
         }
 
-        // Tempo de mistura inicial (1.5s de pura física caótica)
-        tempo = 0;
-        while (tempo < 1.5)
-        {
-            StepFisica(bolas, sorteadas);
-            tempo += Dt;
-        }
+        // Tempo de mistura inicial (1,5 s de física caótica)
+        for (double tempo = 0; tempo < 1.5; tempo += Dt)
+            StepFisica(bolas);
 
-        // Agora começam as retiradas.
-        // A cada 0.3 segundos, uma bola é "sugada" para fora.
+        // Abertura no topo do globo (eixo Y positivo é "para cima", pois a gravidade subtrai de Vel.Y)
+        var abertura = new Vector2(0f, (float)_config.RaioGlobo);
+
+        var sorteadas = new List<int>(6);
         while (sorteadas.Count < 6)
         {
-            var disponiveis = bolas.Where(b => !sorteadas.Contains(b.Dezena)).ToArray();
-            if (disponiveis.Length == 0) break; // Segurança extra
-
-            var bolaSorteada = disponiveis[_rnd.Next(disponiveis.Length)];
-            sorteadas.Add(bolaSorteada.Dezena);
-            bolaSorteada.Pos = new Vector2(1000, 1000); // Move para fora do globo
-
-            // Roda a física por mais 0.3s para as outras bolas se moverem
-            double tempoRetirada = 0;
-            while (tempoRetirada < 0.3)
+            // Sai a bola mais próxima da abertura neste instante
+            Bola? escolhida = null;
+            float melhor = float.MaxValue;
+            foreach (var bola in bolas)
             {
-                StepFisica(bolas, sorteadas);
-                tempoRetirada += Dt;
+                if (bola.Fora) continue;
+                float d2 = (bola.Pos - abertura).LengthSquared();
+                if (d2 < melhor)
+                {
+                    melhor = d2;
+                    escolhida = bola;
+                }
             }
+
+            if (escolhida is null) break; // Segurança extra
+
+            escolhida.Fora = true;
+            sorteadas.Add(escolhida.Dezena);
+
+            // Mais 0,3 s de física para as bolas restantes se mexerem antes da próxima retirada
+            for (double t = 0; t < 0.3; t += Dt)
+                StepFisica(bolas);
         }
 
         return sorteadas.ToArray();
     }
 
-    private void StepFisica(Bola[] bolas, List<int> sorteadas)
+    /// <summary>Fisher-Yates com o mesmo Random da simulação (determinístico quando há seed).</summary>
+    private void Embaralhar(Bola[] bolas)
+    {
+        for (int i = bolas.Length - 1; i > 0; i--)
+        {
+            int j = _rnd.Next(i + 1);
+            (bolas[i], bolas[j]) = (bolas[j], bolas[i]);
+        }
+    }
+
+    private void StepFisica(Bola[] bolas)
     {
         // 1) Aplica forças
         foreach (var bola in bolas)
         {
-            if (sorteadas.Contains(bola.Dezena)) continue;
+            if (bola.Fora) continue;
 
             bola.Vel.Y -= (float)(_config.Gravidade * Dt);
 
-            // Ventilador
+            // Ventilador (jato de ar na parte de baixo do globo)
             if (bola.Pos.Y < -_config.RaioGlobo * 0.3)
             {
                 bola.Vel.Y += (float)(_config.JatoAceleracao * Dt);
@@ -107,23 +141,23 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
         // 2) Integração
         foreach (var bola in bolas)
         {
-            if (sorteadas.Contains(bola.Dezena)) continue;
+            if (bola.Fora) continue;
             bola.Pos += bola.Vel * (float)Dt;
         }
 
         // 3) Colisões
-        ResolverColisoes(bolas, sorteadas);
+        ResolverColisoes(bolas);
     }
 
-    private void ResolverColisoes(Bola[] bolas, List<int> sorteadas)
+    private void ResolverColisoes(Bola[] bolas)
     {
         // Bola-Bola
         for (int i = 0; i < bolas.Length; i++)
         {
-            if (sorteadas.Contains(bolas[i].Dezena)) continue;
+            if (bolas[i].Fora) continue;
             for (int j = i + 1; j < bolas.Length; j++)
             {
-                if (sorteadas.Contains(bolas[j].Dezena)) continue;
+                if (bolas[j].Fora) continue;
 
                 var delta = bolas[i].Pos - bolas[j].Pos;
                 float dist = delta.Length();
@@ -152,7 +186,7 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
         // Bola-Parede
         foreach (var bola in bolas)
         {
-            if (sorteadas.Contains(bola.Dezena)) continue;
+            if (bola.Fora) continue;
 
             float dist = bola.Pos.Length();
             float limit = (float)(_config.RaioGlobo - bola.Raio);
@@ -172,17 +206,18 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
         }
     }
 
-    private class Bola
+    private sealed class Bola
     {
         public int Dezena;
         public Vector2 Pos;
         public Vector2 Vel;
         public float Raio;
+        public bool Fora;   // já foi retirada do globo
 
         public Bola(int dezena, double raio)
         {
             Dezena = dezena;
-            Raio = (float)(raio * 0.1);
+            Raio = (float)raio;
         }
     }
 }

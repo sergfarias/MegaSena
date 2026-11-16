@@ -170,6 +170,7 @@
             .grid-stats { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
     <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
@@ -215,16 +216,9 @@
     </main>
 
     <script>
-        const API_URL = 'https://megasena-api.runasp.net';
-        
+
         const token = localStorage.getItem('token');
         if (!token) {
-            window.location.href = 'login.html';
-        }
-
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('usuarioNome');
             window.location.href = 'login.html';
         }
 
@@ -232,9 +226,7 @@
 
         async function carregarHistorico() {
             try {
-                const response = await fetch(`${API_URL}/api/Auditoria/meus-lotes`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await apiFetch(`${API_URL}/api/Auditoria/meus-lotes`);
 
                 if (response.status === 401) {
                     logout();
@@ -307,9 +299,7 @@
             }
 
             try {
-                const response = await fetch(`${API_URL}/api/Auditoria/meus-lotes/${hash}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await apiFetch(`${API_URL}/api/Auditoria/meus-lotes/${hash}`);
 
                 if (!response.ok) {
                     if (response.status === 401) { logout(); return; }
@@ -381,14 +371,13 @@
             container.innerHTML = '<p style="color: #888;">Verificando 500 concursos reais, aguarde...</p>';
 
             try {
-                const response = await fetch(`${API_URL}/api/Cobertura/backtest?janela=500`, {
+                const response = await apiFetch(`${API_URL}/api/Cobertura/backtest?janela=500`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(jogos)
                 });
+
+                if (response.status === 401) { logout(); return; }
 
                 const data = await response.json();
 
@@ -468,5 +457,7 @@
             if (overlay) overlay.addEventListener('click', fecharMenu);
         })();
     </script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </body>
 </html>

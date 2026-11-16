@@ -1,10 +1,11 @@
-﻿using MegaSena.Domain;
+﻿
+using MegaSena.Domain;
 
 namespace MegaSena.Application.Portas;
 
 public interface IUniversoFactory
 {
-    Universo Criar(int ultimos, int menos);
+    Task<Universo> CriarAsync(int ultimos, int menos, CancellationToken ct = default);
 }
 
 public sealed class UniversoFactoryPadrao : IUniversoFactory
@@ -16,15 +17,16 @@ public sealed class UniversoFactoryPadrao : IUniversoFactory
         _historico = historico;
     }
 
-    public Universo Criar(int ultimos, int menos)
+    public async Task<Universo> CriarAsync(int ultimos, int menos, CancellationToken ct = default)
     {
         var excluidas = new HashSet<int>();
 
-        foreach (var sorteio in _historico.ObterUltimosSorteios(ultimos))
+        // Sequencial de propósito: os dois repositórios usam o mesmo DbContext, que não aceita uso paralelo.
+        foreach (var sorteio in await _historico.ObterUltimosSorteiosAsync(ultimos, ct))
             foreach (var d in sorteio)
                 excluidas.Add(d);
 
-        foreach (var d in _historico.ObterMenosSorteadas(menos))
+        foreach (var d in await _historico.ObterMenosSorteadasAsync(menos, ct))
             excluidas.Add(d);
 
         return Universo.Sem(excluidas);

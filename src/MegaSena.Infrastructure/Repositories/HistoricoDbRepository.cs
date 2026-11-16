@@ -1,28 +1,36 @@
-﻿using MegaSena.Application.Portas;
+﻿
+using MegaSena.Application.Portas;
 using MegaSena.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MegaSena.Infrastructure.Repositories;
 
 public class HistoricoDbRepository : IHistoricoRepository
 {
-    private readonly AppDbContext _context;
+    // O ImportadorConcursosService remove esta chave quando entram concursos novos.
+    private const string ChaveCacheFrequencias = "freq-dezenas";
 
-    public HistoricoDbRepository(AppDbContext context)
+    private readonly AppDbContext _context;
+    private readonly IMemoryCache _cache;
+
+    public HistoricoDbRepository(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
-    public IReadOnlyList<int[]> ObterUltimosSorteios(int quantidade)
+    public async Task<IReadOnlyList<int[]>> ObterUltimosSorteiosAsync(int quantidade, CancellationToken ct = default)
     {
         if (quantidade <= 0) return Array.Empty<int[]>();
 
         // Puxa os últimos N concursos do banco (mais recentes primeiro)
-        var concursos = _context.Concursos
+        var concursos = await _context.Concursos
+            .AsNoTracking()
             .OrderByDescending(c => c.NumeroConcurso)
             .Take(quantidade)
             .Select(c => c.DezenasSorteadas)
-            .ToList(); // Executa a query no banco aqui
+            .ToListAsync(ct);
 
         var resultado = new List<int[]>();
 
@@ -41,30 +49,35 @@ public class HistoricoDbRepository : IHistoricoRepository
         return resultado;
     }
 
-    public IReadOnlyList<int> ObterMenosSorteadas(int quantidade)
+    public async Task<IReadOnlyList<int>> ObterMenosSorteadasAsync(int quantidade, CancellationToken ct = default)
     {
         if (quantidade <= 0) return Array.Empty<int>();
 
-        // Busca todas as dezenas de todos os concursos salvos
-        var todasDezenas = _context.Concursos
-            .Select(c => c.DezenasSorteadas)
-            .ToList();
-
-        // Conta a frequência de cada dezena (1 a 60)
-        var frequencias = new int[61];
-        foreach (var dezenasStr in todasDezenas)
+        // Cache de 1 hora; o importador invalida a chave quando entram concursos novos
+        var frequencias = await _cache.GetOrCreateAsync(ChaveCacheFrequencias, async entry =>
         {
-            if (string.IsNullOrWhiteSpace(dezenasStr)) continue;
-            foreach (var dStr in dezenasStr.Split(','))
-            {
-                if (int.TryParse(dStr.Trim(), out int d) && d >= 1 && d <= 60)
-                    frequencias[d]++;
-            }
-        }
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
 
-        // Retorna as N dezenas que menos saíram (ordenadas pela frequência)
+            var todas = await _context.Concursos
+                .AsNoTracking()
+                .Select(c => c.DezenasSorteadas)
+                .ToListAsync(ct);
+
+            var f = new int[61];
+            foreach (var dezenasStr in todas)
+            {
+                if (string.IsNullOrWhiteSpace(dezenasStr)) continue;
+                foreach (var dStr in dezenasStr.Split(','))
+                {
+                    if (int.TryParse(dStr.Trim(), out int d) && d >= 1 && d <= 60)
+                        f[d]++;
+                }
+            }
+            return f;
+        });
+
         return Enumerable.Range(1, 60)
-            .OrderBy(d => frequencias[d])
+            .OrderBy(d => frequencias![d])
             .Take(quantidade)
             .ToList();
     }

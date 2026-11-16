@@ -1,4 +1,5 @@
-﻿using MegaSena.Domain;
+﻿
+using MegaSena.Domain;
 using MegaSena.Application.Portas;
 
 namespace MegaSena.Application.CasosDeUso;
@@ -16,10 +17,10 @@ public sealed class GerarJogoUseCase
         _universoFactory = universoFactory;
     }
 
-    // AQUI ESTÁ A MUDANÇA: Agora o método recebe 4 parâmetros.
-    public ResultadoSorteio Executar(int ultimos, int menos, bool fisico, int maxPares)
+    public async Task<ResultadoSorteio> ExecutarAsync(
+        int ultimos, int menos, bool fisico, int maxPares, CancellationToken ct = default)
     {
-        var universo = _universoFactory.Criar(ultimos, menos);
+        var universo = await _universoFactory.CriarAsync(ultimos, menos, ct);
 
         // A Factory decide se usa o Físico ou o Rápido
         var gerador = _geradorFactory.Criar(fisico);
@@ -31,30 +32,3 @@ public sealed class GerarJogoUseCase
         return new ResultadoSorteio(jogo, universo, fisico);
     }
 }
-
-
-//using MegaSena.Domain;
-//using MegaSena.Application.Portas;
-
-//namespace MegaSena.Application.CasosDeUso;
-
-//public sealed class GerarJogoUseCase
-//{
-//    private readonly IGeradorDeSorteio _gerador;
-//    private readonly IUniversoFactory _universoFactory;
-//    //private readonly IRegraDeJogo _regra;
-
-//    public GerarJogoUseCase(IGeradorDeSorteio gerador, IUniversoFactory universoFactory, IRegraDeJogo regra)
-//    {
-//        _gerador = gerador;
-//        _universoFactory = universoFactory;
-//        //_regra = regra;
-//    }
-
-//    public ResultadoSorteio Executar(int ultimos, int menos)
-//    {
-//        var universo = _universoFactory.Criar(ultimos, menos);
-//        var jogo = _gerador.Sortear(universo, _regra);
-//        return new ResultadoSorteio(jogo, universo, _gerador.Nome == "Físico");
-//    }
-//}

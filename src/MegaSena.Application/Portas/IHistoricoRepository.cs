@@ -1,8 +1,8 @@
-﻿namespace MegaSena.Application.Portas;
+﻿
+namespace MegaSena.Application.Portas;
 
 public interface IHistoricoRepository
 {
-    IReadOnlyList<int[]> ObterUltimosSorteios(int quantidade);
-    IReadOnlyList<int> ObterMenosSorteadas(int quantidade);
-
+    Task<IReadOnlyList<int[]>> ObterUltimosSorteiosAsync(int quantidade, CancellationToken ct = default);
+    Task<IReadOnlyList<int>> ObterMenosSorteadasAsync(int quantidade, CancellationToken ct = default);
 }

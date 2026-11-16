@@ -49,6 +49,28 @@ public static class ContadorDeJogosValidos
         return total;
     }
 
+    /// <summary>
+    /// Probabilidade de cada dezena estar num jogo escolhido ao acaso entre os jogos VÁLIDOS
+    /// (no máximo <paramref name="maxPares"/> pares consecutivos). Índices 1..60; dezenas fora do universo ficam em 0.
+    /// P(d) = (válidos − válidos sem a dezena d) / válidos. A soma de todas as probabilidades é sempre 6.
+    /// </summary>
+    public static double[] ProbabilidadesDeInclusao(Universo universo, int maxPares)
+    {
+        var p = new double[61];
+
+        long total = Contar(universo, maxPares);
+        if (total == 0) return p;
+
+        foreach (var d in universo.Dezenas)
+        {
+            // Sem a dezena d, as vizinhas d-1 e d+1 deixam de ser consecutivas na lista (a DP compara os números).
+            var semD = new Universo(universo.Dezenas.Where(x => x != d));
+            long validosSemD = Contar(semD, maxPares);
+            p[d] = (double)(total - validosSemD) / total;
+        }
+
+        return p;
+    }
     public static long ContarPorBlocos(Universo universo, int maxBlocos)
     {
         var dz = universo.Dezenas;

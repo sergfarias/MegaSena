@@ -1,6 +1,6 @@
 ﻿using MegaSena.Application.Models;
 using MegaSena.Domain;
-using MegaSena.Domain.Calculadora; // <-- Adicionado
+using MegaSena.Domain.Calculadora; 
 
 namespace MegaSena.Application.CasosDeUso;
 
@@ -24,8 +24,6 @@ public sealed record DetalheConcursoBacktest(
 
 public sealed class BacktestLoteUseCase
 {
-    //private const decimal PrecoJogoSimples = 6.00m;
-
     public ResultadoBacktest Executar(
         IReadOnlyList<Jogo> lote,
         IReadOnlyList<ConcursoDto> concursos,
@@ -83,7 +81,6 @@ public sealed class BacktestLoteUseCase
         return new ResultadoBacktest(
             Janela: ultimos.Count,
             TotalJogosLote: lote.Count,
-            //CustoTotal: lote.Count * PrecoJogoSimples * ultimos.Count,
             CustoSimuladoAcumulado: PrecoAposta.Calcular(6) * lote.Count * ultimos.Count,
             Quadras: totalQuadras,
             Quinas: totalQuinas,

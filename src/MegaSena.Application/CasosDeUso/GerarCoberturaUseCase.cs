@@ -1,7 +1,7 @@
 ﻿using MegaSena.Domain;
 using MegaSena.Domain.Cobertura;
 using MegaSena.Domain.Calculadora;
-using System.Numerics; 
+using System.Numerics;
 
 namespace MegaSena.Application.CasosDeUso;
 
@@ -34,8 +34,8 @@ public sealed class GerarCoberturaUseCase
         var totalAlvos = Combinatoria.C(dezenas.Count, universoSorteado);
         var cobertos = ContarAlvosCobertos(cobertura, universoSorteado, ct);
 
-        // Lógica para saber se o motor exato provou o mínimo
-        bool minimoProvado = (garantia == 6 && universoSorteado == 6) || (dezenas.Count <= 9);
+        // O próprio solver informa se provou o mínimo (exato concluído dentro do orçamento, ou sena)
+        bool minimoProvado = cobertura.MinimoProvado;
 
         return new ResultadoCobertura(
             cobertura,
@@ -44,7 +44,7 @@ public sealed class GerarCoberturaUseCase
             cobertos,
             GarantiaTotal: cobertos == totalAlvos,
             CustoTotal: PrecoAposta.Calcular(6) * cobertura.Jogos.Count,
-            MinimoProvado: minimoProvado 
+            MinimoProvado: minimoProvado
         );
     }
 
@@ -88,3 +88,4 @@ public sealed class GerarCoberturaUseCase
         return mascara;
     }
 }
+

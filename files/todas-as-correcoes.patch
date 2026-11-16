@@ -1,0 +1,527 @@
+diff --git a/src/MegaSena.Api/Controllers/AuditoriaController.cs b/src/MegaSena.Api/Controllers/AuditoriaController.cs
+index bcf0726..4a8a8dc 100644
+--- a/src/MegaSena.Api/Controllers/AuditoriaController.cs
++++ b/src/MegaSena.Api/Controllers/AuditoriaController.cs
+@@ -99,13 +99,17 @@ public class AuditoriaController : ControllerBase
+ 
+                 if (payloadJson != null && payloadJson.Jogos != null)
+                 {
+-                    // Normaliza para string: ordena as dezenas e junta com vírgula (ex: "01,02,03,04,05,06")
++                    // Normaliza para string: ordena as dezenas e junta com vírgula (ex: "1,2,3,4,5,6").
++                    // A lista também é ordenada: o banco não garante a ordem dos itens (Id é GUID aleatório),
++                    // e a integridade depende do conjunto de jogos, não da ordem em que são devolvidos.
+                     var jogosDoJson = payloadJson.Jogos
+                         .Select(j => string.Join(",", j.OrderBy(x => x)))
++                        .OrderBy(x => x, StringComparer.Ordinal)
+                         .ToList();
+ 
+                     var jogosDoBanco = resultado.Value.Jogos
+                         .Select(j => string.Join(",", j.OrderBy(x => x)))
++                        .OrderBy(x => x, StringComparer.Ordinal)
+                         .ToList();
+ 
+                     // Compara as duas listas de jogos
+diff --git a/src/MegaSena.Api/Controllers/AuthController.cs b/src/MegaSena.Api/Controllers/AuthController.cs
+index 75489f8..fa39db1 100644
+--- a/src/MegaSena.Api/Controllers/AuthController.cs
++++ b/src/MegaSena.Api/Controllers/AuthController.cs
+@@ -28,15 +28,13 @@ public class AuthController : ControllerBase
+ 
+         return status switch
+         {
+-            StatusRegistro.Criado => Ok(new { Mensagem = "Usuário criado com sucesso! Faça login para continuar." }),
+-            StatusRegistro.LoginEmUso => BadRequest(new { Erro = "Este login já está em uso." }),
+-
+-            StatusRegistro.EmailEmUso => Ok(new
++            // Mesma resposta nos dois casos: não revela se o e-mail já estava cadastrado.
++            StatusRegistro.Criado or StatusRegistro.EmailEmUso => Ok(new
+             {
+-                Mensagem = "Cadastro recebido. Se os dados estiverem disponíveis, você receberá um e-mail em instantes."
++                Mensagem = "Cadastro recebido. Se o e-mail informado ainda não tinha conta, ela foi criada e você já pode fazer login. " +
++                           "Se já tinha, enviamos orientações para o seu e-mail."
+             }),
+-
+-            //StatusRegistro.EmailEmUso => BadRequest(new { Erro = "Este e-mail já está cadastrado." }),
++            StatusRegistro.LoginEmUso => BadRequest(new { Erro = "Este login já está em uso." }),
+             _ => BadRequest(new { Erro = "Não foi possível criar o usuário. Tente novamente." })
+         };
+     }
+diff --git a/src/MegaSena.Api/Controllers/EstatisticasController.cs b/src/MegaSena.Api/Controllers/EstatisticasController.cs
+index edd0925..9f91a05 100644
+--- a/src/MegaSena.Api/Controllers/EstatisticasController.cs
++++ b/src/MegaSena.Api/Controllers/EstatisticasController.cs
+@@ -83,7 +83,7 @@ public class EstatisticasController : ControllerBase
+     {
+         try
+         {
+-            int nMax = fisico ? 500 : 100_000;
++            int nMax = fisico ? 100 : 20_000;
+             if (n < 50 || n > nMax)
+                 return BadRequest(new ErroResponse($"n deve estar entre 50 e {nMax}."));
+ 
+diff --git a/src/MegaSena.Api/Program.cs b/src/MegaSena.Api/Program.cs
+index cc12f58..80be92e 100644
+--- a/src/MegaSena.Api/Program.cs
++++ b/src/MegaSena.Api/Program.cs
+@@ -125,6 +125,7 @@ builder.Services.AddRateLimiter(options =>
+         options.AddPolicy("contato", _ => RateLimitPartition.GetNoLimiter("test"));
+         options.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("test"));
+         options.AddPolicy("senha", _ => RateLimitPartition.GetNoLimiter("test"));
++        options.AddPolicy("uniformidade", _ => RateLimitPartition.GetNoLimiter("test"));
+         return;
+     }
+ 
+@@ -185,6 +186,18 @@ builder.Services.AddRateLimiter(options =>
+                 QueueLimit = 0,
+                 AutoReplenishment = true
+             }));
++
++    // Teste de uniformidade: CPU-intensivo e público, então limite próprio por IP.
++    options.AddPolicy("uniformidade", context =>
++        RateLimitPartition.GetFixedWindowLimiter(
++            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonimo",
++            factory: _ => new FixedWindowRateLimiterOptions
++            {
++                PermitLimit = 10,
++                Window = TimeSpan.FromMinutes(1),
++                QueueLimit = 0,
++                AutoReplenishment = true
++            }));
+ });
+ 
+ // ==========================================
+diff --git a/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs b/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs
+index d1347c1..ad7db85 100644
+--- a/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs
++++ b/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs
+@@ -43,6 +43,12 @@ public sealed class ContaUseCase
+         if (await _usuarios.EmailExisteAsync(email))
+         {
+             _auth.GerarHashSenha("dummy-timing-attack");
++
++            // A resposta HTTP é igual à de cadastro novo; quem avisa o dono do e-mail é esta mensagem.
++            var dono = await _usuarios.ObterPorEmailAsync(email);
++            if (dono != null && !string.IsNullOrWhiteSpace(dono.Email))
++                _ = EnviarSemFalharAsync(MontarEmailContaExistente(dono));
++
+             return StatusRegistro.EmailEmUso;
+         }
+ 
+@@ -102,6 +108,18 @@ public sealed class ContaUseCase
+         catch { /* a falha já é registrada pelo remetente; a resposta ao usuário é sempre neutra */ }
+     }
+ 
++    private static EmailMensagem MontarEmailContaExistente(UsuarioModel usuario)
++    {
++        var nome = WebUtility.HtmlEncode(usuario.Nome);
++        var corpo =
++            $"<p>Olá, {nome}!</p>" +
++            "<p>Alguém tentou criar uma nova conta no MegaSena SaaS usando este e-mail, mas ele já tem cadastro.</p>" +
++            "<p>Se foi você, entre com o seu login ou use a opção \"Esqueci minha senha\" na tela de login.</p>" +
++            "<p>Se não foi você, ignore este e-mail: nada foi alterado.</p>";
++
++        return new EmailMensagem(usuario.Email!, "Tentativa de cadastro - MegaSena SaaS", corpo);
++    }
++
+     private EmailMensagem MontarEmailRecuperacao(UsuarioModel usuario, string token)
+     {
+         var baseUrl = _config["App:FrontUrl"]
+diff --git a/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs b/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs
+index f047471..1d224fc 100644
+--- a/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs
++++ b/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs
+@@ -16,6 +16,9 @@ public sealed class TestarUniformidadeUseCase
+         regra ??= new RegraSemRestricao();
+         int N = universo.Tamanho;
+ 
++        if (N <= Jogo.DezenasPorJogo)
++            throw new ArgumentException("O universo precisa ter mais de 6 dezenas para o teste de uniformidade.");
++
+         double esperado = (double)n * Jogo.DezenasPorJogo / N;
+         if (esperado < 5)
+             throw new ArgumentException($"n muito pequeno: esperado por dezena = {esperado:F1} (mínimo 5).");
+diff --git a/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs b/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs
+index adf193e..01b6c5c 100644
+--- a/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs
++++ b/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs
+@@ -11,6 +11,10 @@ public static class CalculadoraQuiQuadrado
+     {
+         int N = dezenasUniverso.Count;
+ 
++        // O fator (N-1)/(N-6) divide por zero com N = 6 (e fica negativo abaixo disso).
++        if (N <= Jogo.DezenasPorJogo)
++            throw new ArgumentException("O universo precisa ter mais de 6 dezenas.", nameof(dezenasUniverso));
++
+         // Quantidade esperada de vezes que cada dezena deveria sair
+         double esperado = (double)totalSorteios * Jogo.DezenasPorJogo / N;
+ 
+diff --git a/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs b/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs
+index e7f003d..41ffb93 100644
+--- a/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs
++++ b/src/MegaSena.Infrastructure/Repositories/HistoricoDbRepository.cs
+@@ -44,36 +44,11 @@ public class HistoricoDbRepository : IHistoricoRepository
+         return resultado;
+     }
+ 
+-    //public IReadOnlyList<int> ObterMenosSorteadas(int quantidade)
+-    //{
+-    //    if (quantidade <= 0) return Array.Empty<int>();
+-    //    // Busca todas as dezenas de todos os concursos salvos
+-    //    var todasDezenas = _context.Concursos
+-    //        .Select(c => c.DezenasSorteadas)
+-    //        .ToList();
+-    //    // Conta a frequência de cada dezena (1 a 60)
+-    //    var frequencias = new int[61];
+-    //    foreach (var dezenasStr in todasDezenas)
+-    //    {
+-    //        if (string.IsNullOrWhiteSpace(dezenasStr)) continue;
+-    //        foreach (var dStr in dezenasStr.Split(','))
+-    //        {
+-    //            if (int.TryParse(dStr.Trim(), out int d) && d >= 1 && d <= 60)
+-    //                frequencias[d]++;
+-    //        }
+-    //    }
+-    //    // Retorna as N dezenas que menos saíram (ordenadas pela frequência)
+-    //    return Enumerable.Range(1, 60)
+-    //        .OrderBy(d => frequencias[d])
+-    //        .Take(quantidade)
+-    //        .ToList();
+-    //}
+-
+     public IReadOnlyList<int> ObterMenosSorteadas(int quantidade)
+     {
+         if (quantidade <= 0) return Array.Empty<int>();
+ 
+-        // ✅ CACHE DE 1 HORA AQUI
++        // Cache de 1 hora; o importador invalida a chave quando entram concursos novos
+         var frequencias = _cache.GetOrCreate("freq-dezenas", entry =>
+         {
+             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
+diff --git a/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs b/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs
+index 75e013c..98463f3 100644
+--- a/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs
++++ b/src/MegaSena.Infrastructure/Repositories/LoteRepository.cs
+@@ -67,24 +67,7 @@ public class LoteRepository : ILoteRepository
+ 
+     public async Task<IEnumerable<LoteHistoricoModel>> ObterLotesPorUsuarioAsync(Guid usuarioId)
+     {
+-        // 1. Busca a Entidade no banco
+-        //var lotesDoBanco = await _context.Jogos
+-        //    .Include(j => j.Itens)
+-        //    .Where(j => j.UsuarioId == usuarioId)
+-        //    .OrderByDescending(j => j.DataCriacao)
+-        //    .ToListAsync();
+-
+-        //// 2. Converte (Mapeia) de Entidade para o Model da Application
+-        //return lotesDoBanco.Select(l => new LoteHistoricoModel
+-        //{
+-        //    Id = l.Id,
+-        //    Hash = l.Hash,
+-        //    DataCriacao = l.DataCriacao,
+-        //    QuantidadeJogos = l.Itens.Count,
+-        //    JsonOriginal = l.JsonOriginal
+-        //}).ToList();
+-
+-        // ✅ DEPOIS (projeta direto sem carregar JSON ou Include)
++        // Projeta direto: não carrega o JSON nem os itens, só conta os jogos
+         return await _context.Jogos
+             .AsNoTracking()
+             .Where(j => j.UsuarioId == usuarioId)
+diff --git a/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs b/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
+index f60e46b..638b42a 100644
+--- a/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
++++ b/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
+@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
+ using Microsoft.Extensions.Logging;
+ using System.Globalization; 
+ using System.Text.Json;
++using System.Text.RegularExpressions;
+ using Microsoft.Extensions.Caching.Memory; 
+ 
+ namespace MegaSena.Infrastructure.Services;
+@@ -87,6 +88,8 @@ public class ImportadorConcursosService : BackgroundService
+         var lote = new List<ConcursoDto>();
+         const int tamanhoLote = 50;
+         int falhas = 0;
++        int falhasSeguidas = 0;
++        const int maxFalhasSeguidas = 10;
+ 
+         foreach (var num in faltantes)
+         {
+@@ -106,20 +109,25 @@ public class ImportadorConcursosService : BackgroundService
+             if (c == null)
+             {
+                 falhas++; // o buraco será refeito na próxima rodada
++                falhasSeguidas++;
++
++                if (falhasSeguidas >= maxFalhasSeguidas)
++                {
++                    _log.LogWarning("{N} falhas seguidas; interrompendo a rodada (nova tentativa no retry curto).", falhasSeguidas);
++                    break;
++                }
++
+                 continue;
+             }
+ 
++            falhasSeguidas = 0;
+             lote.Add(c);
+ 
+             // Salva a cada 50 concursos. Erro de banco sobe para o ExecuteAsync (retry curto).
+             if (lote.Count >= tamanhoLote)
+             {
+-                if (lote.Count > 0)
+-                {
+-                    await repo.AdicionarVariosAsync(lote);
+-                    _log.LogInformation("Salvos os últimos {Qtd} concursos no banco.", lote.Count);
+-                    _cache.Remove("freq-dezenas"); 
+-                }
++                await repo.AdicionarVariosAsync(lote);
++                _cache.Remove("freq-dezenas");
+                 _log.LogInformation("Salvos {Qtd} concursos no banco.", lote.Count);
+                 lote.Clear();
+             }
+@@ -128,6 +136,7 @@ public class ImportadorConcursosService : BackgroundService
+         if (lote.Count > 0)
+         {
+             await repo.AdicionarVariosAsync(lote);
++            _cache.Remove("freq-dezenas"); // o caso comum é 1 concurso novo, que cai aqui
+             _log.LogInformation("Salvos os últimos {Qtd} concursos no banco.", lote.Count);
+         }
+ 
+@@ -215,7 +224,7 @@ public class ImportadorConcursosService : BackgroundService
+                 NumeroConcursoAnterior = LerInt(root, "numeroConcursoAnterior"),
+                 ProximoConcurso = LerInt(root, "proximoConcurso"),
+ 
+-                Acumulado = root.TryGetProperty("acumulado", out var ac) && ac.GetBoolean(),
++                Acumulado = root.TryGetProperty("acumulado", out var ac) && ac.ValueKind == JsonValueKind.True,
+                 DataProximoConcurso = dataProximo,
+                 ListaRateioPremioJson = root.TryGetProperty("listaRateioPremio", out var rateio)
+                     ? rateio.GetRawText()
+@@ -233,27 +242,27 @@ public class ImportadorConcursosService : BackgroundService
+                         continue;
+ 
+                     string descricao = descProp.GetString() ?? "";
+-                    int ganhadores = ganhadoresProp.GetInt32();
++                    int ganhadores = ganhadoresProp.ValueKind == JsonValueKind.Number ? ganhadoresProp.GetInt32() : 0;
+ 
+                     decimal valorPremio = 0;
+-                    if (faixa.TryGetProperty("valorPremio", out var premioProp))
++                    if (faixa.TryGetProperty("valorPremio", out var premioProp) && premioProp.ValueKind == JsonValueKind.Number)
+                         valorPremio = premioProp.GetDecimal();
+ 
+-                    // Mapeia para a faixa correta (baseado no padrão da API da Caixa)
+-                    if (descricao.Contains("6", StringComparison.OrdinalIgnoreCase))
++                    // Mapeia para a faixa pelo número de acertos na descrição (ex.: "6 acertos")
++                    switch (FaixaDeAcertos(descricao))
+                     {
+-                        concurso.QtdGanhadoresSena = ganhadores;
+-                        concurso.ValorPremioSena = valorPremio;
+-                    }
+-                    else if (descricao.Contains("5", StringComparison.OrdinalIgnoreCase))
+-                    {
+-                        concurso.QtdGanhadoresQuina = ganhadores;
+-                        concurso.ValorPremioQuina = valorPremio;
+-                    }
+-                    else if (descricao.Contains("4", StringComparison.OrdinalIgnoreCase))
+-                    {
+-                        concurso.QtdGanhadoresQuadra = ganhadores;
+-                        concurso.ValorPremioQuadra = valorPremio;
++                        case 6:
++                            concurso.QtdGanhadoresSena = ganhadores;
++                            concurso.ValorPremioSena = valorPremio;
++                            break;
++                        case 5:
++                            concurso.QtdGanhadoresQuina = ganhadores;
++                            concurso.ValorPremioQuina = valorPremio;
++                            break;
++                        case 4:
++                            concurso.QtdGanhadoresQuadra = ganhadores;
++                            concurso.ValorPremioQuadra = valorPremio;
++                            break;
+                     }
+                 }
+             }
+@@ -267,6 +276,12 @@ public class ImportadorConcursosService : BackgroundService
+         }
+     }
+ 
++    private static int? FaixaDeAcertos(string descricao)
++    {
++        var m = Regex.Match(descricao, @"(?<!\d)([456])(?!\d)");
++        return m.Success ? int.Parse(m.Groups[1].Value) : null;
++    }
++
+     private static decimal? LerDecimal(JsonElement el, string nome) =>
+     el.TryGetProperty(nome, out var p) && p.ValueKind == JsonValueKind.Number
+         ? p.GetDecimal() : null;
+diff --git a/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs b/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs
+index 11a9650..26d91f2 100644
+--- a/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs
++++ b/src/MegaSena.Infrastructure/SimuladorFisicoGerador.cs
+@@ -22,7 +22,7 @@ public sealed class SimuladorFisicoGerador : IGeradorDeSorteio
+     {
+         var dezenas = universo.Dezenas.ToArray();
+ 
+-        // ✅ ADICIONAR ESTA TRAVA ANTES DO LOOP
++        // Trava: regra impossível para este universo (evita milhares de simulações inúteis)
+         if (regra is MaximoParesConsecutivos maxRegra &&
+             ContadorDeJogosValidos.Contar(universo, maxRegra.Maximo) == 0)
+         {
+diff --git a/tests/MegaSena.Api.Tests/ContratosTests.cs b/tests/MegaSena.Api.Tests/ContratosTests.cs
+index ac961bb..43330ce 100644
+--- a/tests/MegaSena.Api.Tests/ContratosTests.cs
++++ b/tests/MegaSena.Api.Tests/ContratosTests.cs
+@@ -130,4 +130,29 @@ public class ContratoGerarTests : IClassFixture<CustomWebApplicationFactory>
+         var criadoEm = json.GetProperty("criadoEmUtc").GetDateTime().ToUniversalTime();
+         Assert.True(Math.Abs((DateTime.UtcNow - criadoEm).TotalMinutes) < 5);
+     }
++
++    [Fact]
++    public async Task MeuLoteDetalhado_AposGerar_DeveConfirmarIntegridade()
++    {
++        var (token, _) = await AuthHelper.RegistrarELogarAsync(_client);
++        AuthHelper.Autenticar(_client, token);
++
++        var gerar = await _client.PostAsJsonAsync("/api/Cobertura/gerar", new
++        {
++            dezenas = new[] { 2, 5, 9, 14, 20, 31, 44 },
++            garantia = 6,
++            universoSorteado = 6,
++            maxPares = 1
++        });
++        Assert.Equal(HttpStatusCode.OK, gerar.StatusCode);
++
++        using var docGerar = JsonDocument.Parse(await gerar.Content.ReadAsStringAsync());
++        var hash = docGerar.RootElement.GetProperty("hashAuditoria").GetString();
++
++        var resp = await _client.GetAsync($"/api/Auditoria/meus-lotes/{hash}");
++        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
++
++        using var docLote = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
++        Assert.True(docLote.RootElement.GetProperty("integridadeConfirmada").GetBoolean());
++    }
+ }
+diff --git a/tests/MegaSena.Api.Tests/EmailTests.cs b/tests/MegaSena.Api.Tests/EmailTests.cs
+index 267c4c1..4aeb53a 100644
+--- a/tests/MegaSena.Api.Tests/EmailTests.cs
++++ b/tests/MegaSena.Api.Tests/EmailTests.cs
+@@ -90,6 +90,27 @@ public class EmailTests : IClassFixture<CustomWebApplicationFactory>
+         Assert.Single(email.Enviados); // só o do usuário existente
+     }
+ 
++    [Fact]
++    public async Task Registrar_EmailRepetido_RespondeOkEAvisaODonoDoEmail()
++    {
++        var (client, email) = CriarCliente();
++        var (_, endereco) = await RegistrarAsync(client);
++
++        var resp = await client.PostAsJsonAsync("/api/Auth/registrar", new
++        {
++            nome = "Outro",
++            login = "o" + Guid.NewGuid().ToString("N")[..12],
++            email = endereco,
++            senha = "senha123456"
++        });
++
++        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
++        Assert.Contains("Cadastro recebido", await resp.Content.ReadAsStringAsync());
++
++        var msg = Assert.Single(email.Enviados); // o cadastro novo não envia e-mail; só o aviso ao dono
++        Assert.Equal(endereco, msg.Para);
++    }
++
+     [Fact]
+     public async Task Contato_DeveNotificarOAdministradorComConteudoEscapado()
+     {
+diff --git a/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs b/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs
+index 6c80f52..5974de5 100644
+--- a/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs
++++ b/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs
+@@ -114,6 +114,20 @@ public class ContaUseCaseTests
+         Assert.Equal(StatusRegistro.EmailEmUso, await conta.RegistrarAsync("Outra", "outra", "maria@teste.com", "senha12345"));
+     }
+ 
++    [Fact]
++    public async Task Registrar_EmailRepetido_AvisaODonoDoEmailSemCriarOutroUsuario()
++    {
++        var (conta, repo, email) = Criar();
++        await conta.RegistrarAsync("Maria", "maria", "maria@teste.com", "senha12345");
++
++        var status = await conta.RegistrarAsync("Outra", "outra", "maria@teste.com", "senha12345");
++
++        Assert.Equal(StatusRegistro.EmailEmUso, status);
++        Assert.Single(repo.Usuarios);
++        var msg = Assert.Single(email.Enviados);
++        Assert.Equal("maria@teste.com", msg.Para);
++    }
++
+     [Fact]
+     public async Task Login_CredenciaisCorretas_DeveGerarToken()
+     {
+diff --git a/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs b/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs
+index cdcdd26..8923492 100644
+--- a/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs
++++ b/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs
+@@ -50,17 +50,24 @@ public class TestarUniformidadeUseCaseTests
+     [Fact]
+     public void Executar_ComUniversoNaoContiguo_NaoDeveLancarEDeveCalcularGlCorreto()
+     {
+-        // Universo {1,3,5,7,9,11} — não contíguo, 6 dezenas
+-        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11 });
+-        var gerador = new GeradorMock(() =>
+-        {
+-            // Gera um jogo válido qualquer dentro do universo
+-            return Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 });
+-        });
++        // Universo não contíguo com 8 dezenas (precisa ter mais de 6)
++        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11, 13, 15 });
++        var gerador = new GeradorMock(() => Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 }));
+ 
+         var r = new TestarUniformidadeUseCase().Executar(gerador, universo, n: 100);
+ 
+-        Assert.Equal(universo.Tamanho - 1, r.GrausDeLiberdade); // gl = 5
+-        Assert.InRange(r.QuiQuadrado, 0, double.MaxValue);
++        Assert.Equal(universo.Tamanho - 1, r.GrausDeLiberdade); // gl = 7
++        Assert.True(double.IsFinite(r.QuiQuadrado));
++        Assert.True(r.QuiQuadrado > 0);
++    }
++
++    [Fact]
++    public void Executar_ComUniversoDe6Dezenas_DeveLancarArgumentException()
++    {
++        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11 });
++        var gerador = new GeradorMock(() => Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 }));
++
++        Assert.Throws<ArgumentException>(() =>
++            new TestarUniformidadeUseCase().Executar(gerador, universo, n: 100));
+     }
+ }
+diff --git a/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs b/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs
+index e24d512..ee69efb 100644
+--- a/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs
++++ b/tests/MegaSena.Infrastructure.Tests/Repositories/HistoricoDbRepositoryTests.cs
+@@ -18,7 +18,7 @@ public class HistoricoDbRepositoryTests
+         return new AppDbContext(options);
+     }
+ 
+-    // ✅ Helper para criar o repositório com o Cache vazio exigido
++    // Cria o repositório com um cache vazio
+     private static HistoricoDbRepository CriarRepo(AppDbContext db)
+     {
+         var cache = new MemoryCache(new MemoryCacheOptions());
+@@ -70,7 +70,6 @@ public class HistoricoDbRepositoryTests
+     public void ObterUltimosSorteios_QuantidadeInvalida_DeveRetornarVazio(int quantidade)
+     {
+         using var db = CriarDb();
+-        // ✅ CORRIGIDO: usa o helper CriarRepo(db) em vez de new HistoricoDbRepository(db)
+         Assert.Empty(CriarRepo(db).ObterUltimosSorteios(quantidade));
+     }
+ 
+@@ -78,7 +77,6 @@ public class HistoricoDbRepositoryTests
+     public void ObterUltimosSorteios_BancoVazio_DeveRetornarVazio()
+     {
+         using var db = CriarDb();
+-        // ✅ CORRIGIDO: usa o helper CriarRepo(db) em vez de new HistoricoDbRepository(db)
+         Assert.Empty(CriarRepo(db).ObterUltimosSorteios(3));
+     }
+ 

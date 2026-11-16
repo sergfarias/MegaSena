@@ -7,22 +7,27 @@
     <link rel="stylesheet" href="styles.css">
     
     <style>
+        /* O body principal é ajustado para não rolar a tela inteira e usar flex */
         body {
             display: flex;
             height: 100vh;
             overflow: hidden;
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
         }
 
-        .painel-controles {
-            position: fixed;
-            left: 250px;
-            top: 0;
-            width: 320px;
+        /* O container principal engloba o painel de controles e o canvas */
+        .simulador-wrapper {
+            display: flex;
+            width: 100%;
+            margin-left: 250px; /* Tamanho da sidebar */
             height: 100vh;
+        }
+
+        .painel-controles {
+            width: 320px;
+            height: 100%;
             background-color: var(--panel-bg);
             border-right: 1px solid var(--border);
             padding: 20px 15px;
@@ -32,6 +37,7 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            flex-shrink: 0;
         }
 
         .painel-controles h2 {
@@ -73,7 +79,6 @@
         .secao-uniformidade { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 15px; }
 
         #canvas-container {
-            margin-left: 570px;
             flex-grow: 1;
             display: flex;
             justify-content: center;
@@ -81,7 +86,6 @@
             position: relative;
             padding: 20px;
             box-sizing: border-box;
-            height: 100vh;
             background: linear-gradient(135deg, #1a1b26 0%, #16161e 100%);
         }
 
@@ -97,7 +101,7 @@
 
         .modal-fundo {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 1000;
+            background: rgba(0,0,0,0.8); z-index: 2000;
             display: none; justify-content: center; align-items: center;
         }
 
@@ -120,12 +124,18 @@
             padding: 10px 15px; font-size: 0.9rem; margin-top: 0;
         }
 
+        /* Responsividade */
         @media (max-width: 1100px) {
-            .painel-controles { position: relative; left: auto; width: 100%; height: auto; max-height: 300px; order: 2; }
-            #canvas-container { margin-left: 0; margin-top: 70px; height: 60vh; order: 1; }
-            body { flex-direction: column; overflow-y: auto; height: auto; }
+            body { overflow-y: auto; height: auto; flex-direction: column; }
+            .simulador-wrapper { flex-direction: column; margin-left: 0; height: auto; }
+            .painel-controles { width: 100%; height: auto; max-height: none; order: 2; border-right: none; border-top: 1px solid var(--border); }
+            #canvas-container { order: 1; height: 60vh; padding: 10px; }
         }
     </style>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
+    <!-- config.js carregado antes de qualquer script para garantir a variável API_URL -->
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </head>
 <body>
 
@@ -150,53 +160,57 @@
         </nav>
     </aside>
 
-    <div class="painel-controles">
-        <h2>⚙️ Ajustes do Sorteio</h2>
-        <div class="control-group">
-            <label>Velocidade: <span id="valVento">80</span></label>
-            <input type="range" id="vento" min="0" max="150" value="80">
-        </div>
-        <div class="control-group">
-            <label>Peso: <span id="valGrav">9.8</span></label>
-            <input type="range" id="grav" min="0" max="20" step="0.1" value="9.8">
-        </div>
-        <div class="control-group">
-            <label>Aleatoriedade: <span id="valTurb">0.5</span></label>
-            <input type="range" id="turb" min="0" max="2" step="0.1" value="0.5">
-        </div>
-        <div class="control-group">
-            <label>Quique/Salto: <span id="valRest">0.7</span></label>
-            <input type="range" id="rest" min="0.1" max="0.99" step="0.01" value="0.7">
-        </div>
-        <div class="control-group">
-            <label>Filtrar Últimos:</label>
-            <select id="ultimosSorteios">
-                <option value="0">Não filtrar</option>
-                <option value="1">Ignorar 1</option>
-                <option value="2">Ignorar 2</option>
-                <option value="3" selected>Ignorar 3</option>
-            </select>
-        </div>    
-        <div class="control-group">
-            <label>Qtd. de Jogos:</label>
-            <input type="number" id="qtdJogos" value="1" min="1" max="20">
-        </div>
-
-        <button id="btnSortear" class="btn-painel btn-sortear">Sortear (Animado)</button>
-        <button id="btnGerarLote" class="btn-painel btn-lote">Gerar Lote (Rápido)</button>
-
-        <div class="secao-uniformidade">
-            <h2>🧪 Teste Científico</h2>
-            <div class="control-group" style="margin-bottom: 10px;">
-                <label>Simulações: <span id="valN">300</span></label>
-                <input type="range" id="nSimulacoes" min="10" max="5000" step="10" value="300">
+    <!-- Wrapper que agrupa o painel e o canvas -->
+    <div class="simulador-wrapper">
+        <div class="painel-controles">
+            <h2>⚙️ Ajustes do Sorteio</h2>
+            <div class="control-group">
+                <label>Velocidade: <span id="valVento">80</span></label>
+                <input type="range" id="vento" min="0" max="150" value="80">
             </div>
-            <button id="btnUniformidade" class="btn-painel btn-uniformidade">Globo justo?</button>
-        </div>
-    </div>
+            <div class="control-group">
+                <label>Peso: <span id="valGrav">9.8</span></label>
+                <input type="range" id="grav" min="0" max="20" step="0.1" value="9.8">
+            </div>
+            <div class="control-group">
+                <label>Aleatoriedade: <span id="valTurb">0.5</span></label>
+                <input type="range" id="turb" min="0" max="2" step="0.1" value="0.5">
+            </div>
+            <div class="control-group">
+                <label>Quique/Salto: <span id="valRest">0.7</span></label>
+                <input type="range" id="rest" min="0.1" max="0.99" step="0.01" value="0.7">
+            </div>
+            <div class="control-group">
+                <label>Filtrar Últimos:</label>
+                <select id="ultimosSorteios">
+                    <option value="0">Não filtrar</option>
+                    <option value="1">Ignorar 1</option>
+                    <option value="2">Ignorar 2</option>
+                    <option value="3" selected>Ignorar 3</option>
+                </select>
+            </div>    
+            <div class="control-group">
+                <label>Qtd. de Jogos:</label>
+                <input type="number" id="qtdJogos" value="1" min="1" max="20">
+            </div>
 
-    <div id="canvas-container">
-        <canvas id="canvas"></canvas>
+            <button id="btnSortear" class="btn-painel btn-sortear">Sortear (Animado)</button>
+            <button id="btnGerarLote" class="btn-painel btn-lote">Gerar Lote (Rápido)</button>
+
+            <div class="secao-uniformidade">
+                <h2>🧪 Teste Científico</h2>
+                <div class="control-group" style="margin-bottom: 10px;">
+                    <label>Simulações: <span id="valN">100</span></label>
+                    <!-- L22: Slider alterado para respeitar o limite do backend físico (50 a 100) -->
+                    <input type="range" id="nSimulacoes" min="50" max="100" step="10" value="100">
+                </div>
+                <button id="btnUniformidade" class="btn-painel btn-uniformidade">Globo justo?</button>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
     </div>
 
     <div id="modalFundo" class="modal-fundo">
@@ -222,12 +236,17 @@
     </div>
 
     <script>
-        const API_URL = 'https://megasena-api.runasp.net';
-        
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('usuarioNome');
-            window.location.href = 'login.html';
+        // Valida a resposta da API: 429 vira mensagem com o tempo de espera; outros erros mostram a mensagem da API
+        async function validarResposta(response) {
+            if (response.status === 429) {
+                const s = parseInt(response.headers.get('Retry-After')) || 10;
+                throw new Error(`Muitas requisições. Aguarde ${s} segundos e tente de novo.`);
+            }
+            if (!response.ok) {
+                let msg = `Erro HTTP: ${response.status}`;
+                try { const e = await response.json(); if (e.erro) msg = e.erro; } catch { }
+                throw new Error(msg);
+            }
         }
 
         const canvas = document.getElementById('canvas');
@@ -276,13 +295,21 @@
             btn.disabled = true;
 
             try {
-                const jogosGerados = [];
-                for (let i = 0; i < qtd; i++) {
-                    const url = `${API_URL}/api/MegaSena/sortear?fisico=${fisico}&ultimos=${ultimos}&menos=4`;
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+                let jogosGerados;
+                if (qtd === 1) {
+                    const response = await fetch(`${API_URL}/api/MegaSena/sortear?fisico=${fisico}&ultimos=${ultimos}&menos=4`);
+                    await validarResposta(response);
                     const data = await response.json();
-                    jogosGerados.push(data.jogos);
+                    jogosGerados = [data.jogos];
+                } else {
+                    // L22: vários jogos numa única requisição (antes eram até 20, que gastavam o limite por minuto)
+                    const response = await fetch(`${API_URL}/api/MegaSena/gerar-lote`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ quantidade: qtd, ultimos: parseInt(ultimos), menos: 4, maxPares: 1 })
+                    });
+                    await validarResposta(response);
+                    jogosGerados = (await response.json()).jogos;
                 }
                 jogosSalvosParaExportar = jogosGerados;
                 exibirModalJogos(jogosGerados);
@@ -315,10 +342,7 @@
                     body: JSON.stringify({ quantidade: qtd, ultimos: parseInt(ultimos), menos: 4, maxPares: 1 })
                 });
 
-                if (!response.ok) {
-                    const erroData = await response.json();
-                    throw new Error(erroData.erro || `Erro HTTP: ${response.status}`);
-                }
+                await validarResposta(response);
 
                 const data = await response.json();
                 jogosSalvosParaExportar = data.jogos;
@@ -375,7 +399,17 @@
 
             try {
                 const response = await fetch(`${API_URL}/api/MegaSena/uniformidade?fisico=true&n=${nSimulacoes}&ultimos=${ultimos}&menos=4`);
-                if (!response.ok) throw new Error("Erro na API");
+                
+                // L22: Tratamento do erro 429 (Rate Limit)
+                if (response.status === 429) {
+                    iconeModal.innerText = "⏳";
+                    modalTitulo.innerText = "Aguarde...";
+                    modalTitulo.style.color = "var(--warning)";
+                    modalCorpo.innerHTML = "Muitas requisições no simulador. Aguarde alguns segundos e tente novamente.";
+                    return; 
+                }
+
+                await validarResposta(response);
                 const data = await response.json();
                 
                 if (data.semEvidenciaDeVies) {
@@ -390,10 +424,11 @@
                     modalCorpo.innerHTML = `<strong style="color: var(--danger);">Atenção!</strong><br><br>Algumas dezenas parecem sair mais. Tente rodar com mais simulações.<br><br><span style="font-size:0.8rem;color:#666">(χ²: ${data.quiQuadrado?.toFixed(2) || '?'}, p: ${data.pValor?.toFixed(4) || '?'})</span>`;
                 }
             } catch (error) {
+                const semRede = error instanceof TypeError; // falha de rede (fetch não chegou ao servidor)
                 iconeModal.innerText = "❌";
-                modalTitulo.innerText = "Erro de Conexão";
+                modalTitulo.innerText = semRede ? "Erro de Conexão" : "Não foi possível testar";
                 modalTitulo.style.color = "var(--danger)";
-                modalCorpo.innerHTML = "Não foi possível conectar ao servidor.";
+                modalCorpo.innerText = semRede ? "Não foi possível conectar ao servidor." : error.message;
             } finally {
                 btn.innerText = "Globo justo?";
                 btn.disabled = false;

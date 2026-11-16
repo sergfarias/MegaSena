@@ -7,14 +7,16 @@ public sealed class SolverRoteador : ICoberturaSolver
 {
     private readonly GulosoCoberturaSolver _guloso;
     private readonly SolverExato _exato;
+    private readonly TimeSpan _orcamentoExato;
 
-    public SolverRoteador(GulosoCoberturaSolver guloso, SolverExato exato)
+    public SolverRoteador(GulosoCoberturaSolver guloso, SolverExato exato, TimeSpan? orcamentoExato = null)
     {
         _guloso = guloso;
         _exato = exato;
+        _orcamentoExato = orcamentoExato ?? TimeSpan.FromSeconds(4);
     }
 
-    public MegaSena.Domain.Cobertura.Cobertura Resolver(
+    public Domain.Cobertura.Cobertura Resolver(
         IReadOnlySet<int> dezenas,
         int garantia,
         int universoSorteado,
@@ -28,13 +30,20 @@ public sealed class SolverRoteador : ICoberturaSolver
         // 2. Limite superior via guloso
         var ub = _guloso.Resolver(dezenas, garantia, universoSorteado, maxPares, ct);
 
-        // 3. Acima de 9 dezenas (ou solução trivial) não tenta o exato
-        if (dezenas.Count > 9 || ub.Jogos.Count <= 1)
+        // 3. Acima de 9 dezenas o exato não é tentado: não há prova de mínimo
+        if (dezenas.Count > 9)
             return ub;
+
+        // 3b. Com 1 jogo o mínimo é trivial (não existe solução com menos de 1 jogo)
+        if (ub.Jogos.Count <= 1)
+            return ub with { MinimoProvado = ub.Jogos.Count == 1 };
 
         // 4. Exato com orçamento próprio de 4 s; se estourar, devolve o guloso
         using var orcamento = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        orcamento.CancelAfter(TimeSpan.FromSeconds(4));
+        if (_orcamentoExato <= TimeSpan.Zero)
+            orcamento.Cancel();                    // estoura de imediato, sem depender do timer
+        else
+            orcamento.CancelAfter(_orcamentoExato);
 
         try
         {
@@ -69,3 +78,4 @@ public sealed class SolverRoteador : ICoberturaSolver
         return new MegaSena.Domain.Cobertura.Cobertura(dezenas, 6, garantia, universoSorteado, jogos, true);
     }
 }
+

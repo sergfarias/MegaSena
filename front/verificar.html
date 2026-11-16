@@ -29,6 +29,7 @@
             border-left: 4px solid var(--success); display: flex; gap: 5px; justify-content: center;
         }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
 
@@ -77,13 +78,6 @@
     </main>
 
     <script>
-        const API_URL = 'https://megasena-api.runasp.net';
-       
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('usuarioNome');
-            window.location.href = 'login.html';
-        }
 
         async function validarHash() {
             const hashInput = document.getElementById('inputHash').value.trim().toUpperCase();
@@ -155,5 +149,7 @@
             if (overlay) overlay.addEventListener('click', fecharMenu);
         })();
     </script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </body>
 </html>

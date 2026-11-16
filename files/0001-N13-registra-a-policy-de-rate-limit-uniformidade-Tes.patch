@@ -1,0 +1,47 @@
+From 1bc3394dbe6ffbc14d8e85ef21423e582e5cde05 Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 1/8] =?UTF-8?q?N13:=20registra=20a=20policy=20de=20rate=20?=
+ =?UTF-8?q?limit=20"uniformidade"=20(Testing=20e=20produ=C3=A7=C3=A3o)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ src/MegaSena.Api/Program.cs | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/src/MegaSena.Api/Program.cs b/src/MegaSena.Api/Program.cs
+index cc12f58..80be92e 100644
+--- a/src/MegaSena.Api/Program.cs
++++ b/src/MegaSena.Api/Program.cs
+@@ -125,6 +125,7 @@ builder.Services.AddRateLimiter(options =>
+         options.AddPolicy("contato", _ => RateLimitPartition.GetNoLimiter("test"));
+         options.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("test"));
+         options.AddPolicy("senha", _ => RateLimitPartition.GetNoLimiter("test"));
++        options.AddPolicy("uniformidade", _ => RateLimitPartition.GetNoLimiter("test"));
+         return;
+     }
+ 
+@@ -185,6 +186,18 @@ builder.Services.AddRateLimiter(options =>
+                 QueueLimit = 0,
+                 AutoReplenishment = true
+             }));
++
++    // Teste de uniformidade: CPU-intensivo e público, então limite próprio por IP.
++    options.AddPolicy("uniformidade", context =>
++        RateLimitPartition.GetFixedWindowLimiter(
++            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonimo",
++            factory: _ => new FixedWindowRateLimiterOptions
++            {
++                PermitLimit = 10,
++                Window = TimeSpan.FromMinutes(1),
++                QueueLimit = 0,
++                AutoReplenishment = true
++            }));
+ });
+ 
+ // ==========================================
+-- 
+2.43.0
+

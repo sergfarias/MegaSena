@@ -1,0 +1,138 @@
+From 41a60cd5f30a42616a1f82bb50b4b8568532e1e2 Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 4/8] =?UTF-8?q?N16:=20registro=20com=20resposta=20id=C3=AA?=
+ =?UTF-8?q?ntica=20para=20e-mail=20novo/existente=20e=20aviso=20por=20e-ma?=
+ =?UTF-8?q?il=20ao=20dono?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../Controllers/AuthController.cs             | 12 +++++------
+ .../CasosDeUso/ContaUseCase.cs                | 18 ++++++++++++++++
+ tests/MegaSena.Api.Tests/EmailTests.cs        | 21 +++++++++++++++++++
+ .../CasosDeUso/ContaUseCaseTests.cs           | 14 +++++++++++++
+ 4 files changed, 58 insertions(+), 7 deletions(-)
+
+diff --git a/src/MegaSena.Api/Controllers/AuthController.cs b/src/MegaSena.Api/Controllers/AuthController.cs
+index 75489f8..fa39db1 100644
+--- a/src/MegaSena.Api/Controllers/AuthController.cs
++++ b/src/MegaSena.Api/Controllers/AuthController.cs
+@@ -28,15 +28,13 @@ public class AuthController : ControllerBase
+ 
+         return status switch
+         {
+-            StatusRegistro.Criado => Ok(new { Mensagem = "Usuário criado com sucesso! Faça login para continuar." }),
+-            StatusRegistro.LoginEmUso => BadRequest(new { Erro = "Este login já está em uso." }),
+-
+-            StatusRegistro.EmailEmUso => Ok(new
++            // Mesma resposta nos dois casos: não revela se o e-mail já estava cadastrado.
++            StatusRegistro.Criado or StatusRegistro.EmailEmUso => Ok(new
+             {
+-                Mensagem = "Cadastro recebido. Se os dados estiverem disponíveis, você receberá um e-mail em instantes."
++                Mensagem = "Cadastro recebido. Se o e-mail informado ainda não tinha conta, ela foi criada e você já pode fazer login. " +
++                           "Se já tinha, enviamos orientações para o seu e-mail."
+             }),
+-
+-            //StatusRegistro.EmailEmUso => BadRequest(new { Erro = "Este e-mail já está cadastrado." }),
++            StatusRegistro.LoginEmUso => BadRequest(new { Erro = "Este login já está em uso." }),
+             _ => BadRequest(new { Erro = "Não foi possível criar o usuário. Tente novamente." })
+         };
+     }
+diff --git a/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs b/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs
+index d1347c1..ad7db85 100644
+--- a/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs
++++ b/src/MegaSena.Application/CasosDeUso/ContaUseCase.cs
+@@ -43,6 +43,12 @@ public sealed class ContaUseCase
+         if (await _usuarios.EmailExisteAsync(email))
+         {
+             _auth.GerarHashSenha("dummy-timing-attack");
++
++            // A resposta HTTP é igual à de cadastro novo; quem avisa o dono do e-mail é esta mensagem.
++            var dono = await _usuarios.ObterPorEmailAsync(email);
++            if (dono != null && !string.IsNullOrWhiteSpace(dono.Email))
++                _ = EnviarSemFalharAsync(MontarEmailContaExistente(dono));
++
+             return StatusRegistro.EmailEmUso;
+         }
+ 
+@@ -102,6 +108,18 @@ public sealed class ContaUseCase
+         catch { /* a falha já é registrada pelo remetente; a resposta ao usuário é sempre neutra */ }
+     }
+ 
++    private static EmailMensagem MontarEmailContaExistente(UsuarioModel usuario)
++    {
++        var nome = WebUtility.HtmlEncode(usuario.Nome);
++        var corpo =
++            $"<p>Olá, {nome}!</p>" +
++            "<p>Alguém tentou criar uma nova conta no MegaSena SaaS usando este e-mail, mas ele já tem cadastro.</p>" +
++            "<p>Se foi você, entre com o seu login ou use a opção \"Esqueci minha senha\" na tela de login.</p>" +
++            "<p>Se não foi você, ignore este e-mail: nada foi alterado.</p>";
++
++        return new EmailMensagem(usuario.Email!, "Tentativa de cadastro - MegaSena SaaS", corpo);
++    }
++
+     private EmailMensagem MontarEmailRecuperacao(UsuarioModel usuario, string token)
+     {
+         var baseUrl = _config["App:FrontUrl"]
+diff --git a/tests/MegaSena.Api.Tests/EmailTests.cs b/tests/MegaSena.Api.Tests/EmailTests.cs
+index 267c4c1..4aeb53a 100644
+--- a/tests/MegaSena.Api.Tests/EmailTests.cs
++++ b/tests/MegaSena.Api.Tests/EmailTests.cs
+@@ -90,6 +90,27 @@ public class EmailTests : IClassFixture<CustomWebApplicationFactory>
+         Assert.Single(email.Enviados); // só o do usuário existente
+     }
+ 
++    [Fact]
++    public async Task Registrar_EmailRepetido_RespondeOkEAvisaODonoDoEmail()
++    {
++        var (client, email) = CriarCliente();
++        var (_, endereco) = await RegistrarAsync(client);
++
++        var resp = await client.PostAsJsonAsync("/api/Auth/registrar", new
++        {
++            nome = "Outro",
++            login = "o" + Guid.NewGuid().ToString("N")[..12],
++            email = endereco,
++            senha = "senha123456"
++        });
++
++        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
++        Assert.Contains("Cadastro recebido", await resp.Content.ReadAsStringAsync());
++
++        var msg = Assert.Single(email.Enviados); // o cadastro novo não envia e-mail; só o aviso ao dono
++        Assert.Equal(endereco, msg.Para);
++    }
++
+     [Fact]
+     public async Task Contato_DeveNotificarOAdministradorComConteudoEscapado()
+     {
+diff --git a/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs b/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs
+index 6c80f52..5974de5 100644
+--- a/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs
++++ b/tests/MegaSena.Application.Tests/CasosDeUso/ContaUseCaseTests.cs
+@@ -114,6 +114,20 @@ public class ContaUseCaseTests
+         Assert.Equal(StatusRegistro.EmailEmUso, await conta.RegistrarAsync("Outra", "outra", "maria@teste.com", "senha12345"));
+     }
+ 
++    [Fact]
++    public async Task Registrar_EmailRepetido_AvisaODonoDoEmailSemCriarOutroUsuario()
++    {
++        var (conta, repo, email) = Criar();
++        await conta.RegistrarAsync("Maria", "maria", "maria@teste.com", "senha12345");
++
++        var status = await conta.RegistrarAsync("Outra", "outra", "maria@teste.com", "senha12345");
++
++        Assert.Equal(StatusRegistro.EmailEmUso, status);
++        Assert.Single(repo.Usuarios);
++        var msg = Assert.Single(email.Enviados);
++        Assert.Equal("maria@teste.com", msg.Para);
++    }
++
+     [Fact]
+     public async Task Login_CredenciaisCorretas_DeveGerarToken()
+     {
+-- 
+2.43.0
+

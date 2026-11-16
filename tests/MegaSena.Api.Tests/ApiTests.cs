@@ -74,19 +74,13 @@ public class ApiTests : IClassFixture<CustomWebApplicationFactory>
             { "/api/MegaSena/sortear", HttpStatusCode.OK },
             { "/api/MegaSena/contar", HttpStatusCode.OK },
             { "/api/MegaSena/probabilidade?dezenas=6", HttpStatusCode.OK },
-            { "/api/MegaSena/concursos?quantidade=5", HttpStatusCode.OK },
-            { "/api/MegaSena/ultimo-sorteio", HttpStatusCode.OK }, // Pode variar se a API cair
+            { "/api/MegaSena/concursos?quantidade=5", HttpStatusCode.OK }
         };
 
         foreach (var ep in endpoints)
         {
             var resp = await _client.GetAsync(ep.Key);
-
-            // Como o ultimo-sorteio depende de uma API externa, aceitamos OK ou BadRequest
-            if (ep.Key == "/api/MegaSena/ultimo-sorteio")
-                Assert.True(resp.StatusCode == HttpStatusCode.OK || resp.StatusCode == HttpStatusCode.BadRequest);
-            else
-                Assert.Equal(ep.Value, resp.StatusCode);
+            Assert.Equal(ep.Value, resp.StatusCode);
         }
     }
 }

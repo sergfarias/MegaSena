@@ -38,6 +38,10 @@
         .secao-titulo { width: 100%; max-width: 1000px; margin-top: 40px; margin-bottom: 10px; color: #fff; font-size: 1.3rem; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
         .secao-subtitulo { color: #888; font-size: 0.9rem; margin-bottom: 10px; width: 100%; max-width: 1000px; }
     </style>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
+    <!-- config.js carregado antes do script principal para disponibilizar a variável API_URL -->
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </head>
 <body>
 
@@ -116,23 +120,22 @@
         </div>
     </main>
 
-    <script>
-        const API = 'https://megasena-api.runasp.net';
-        
+    <script> 
         const token = localStorage.getItem('token');
         if (!token) window.location.href = 'login.html';
 
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('usuarioNome');
-            window.location.href = 'login.html';
-        }
-
         async function carregarQuiQuadrado() {
             try {
-                const response = await fetch(`${API}/api/MegaSena/qui-quadrado?janela=200`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // L21 CORREÇÃO: Usando API_URL do config.js
+                const response = await apiFetch(`${API_URL}/api/MegaSena/qui-quadrado?janela=200`);
+                
+                // L21 CORREÇÃO: Tratamento de 401 Unauthorized
+                if (response.status === 401) {
+                    alert("Sessão expirada. Faça login novamente.");
+                    logout();
+                    return;
+                }
+
                 if (!response.ok) throw new Error("API indisponível ou poucos dados.");
 
                 const data = await response.json();
@@ -159,7 +162,15 @@
 
         async function carregarUniverso() {
             try {
-                const response = await fetch(`${API}/api/MegaSena/contar`);
+                // L21 CORREÇÃO: Usando API_URL do config.js
+                const response = await fetch(`${API_URL}/api/MegaSena/contar`);
+                
+                if (response.status === 401) {
+                    alert("Sessão expirada. Faça login novamente.");
+                    logout();
+                    return;
+                }
+
                 if (!response.ok) throw new Error("Erro ao buscar universo");
                 
                 const data = await response.json();

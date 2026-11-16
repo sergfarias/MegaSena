@@ -1,6 +1,11 @@
-﻿using System.Net;
-using System.Net.Http.Headers;
+﻿using MegaSena.Application.Portas;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace MegaSena.Api.Tests;
@@ -34,7 +39,12 @@ public class ControllersTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task Uniformidade_DeveRetornarOk()
     {
-        var response = await _client.GetAsync("/api/MegaSena/uniformidade?n=100");
+        // Como o rate limit pode ter sido estourado por outros testes, 
+        // criamos uma factory isolada apenas para este teste.
+        var factory = new CustomWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/MegaSena/uniformidade?n=100");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -97,5 +107,30 @@ public class ControllersTests : IClassFixture<CustomWebApplicationFactory>
         var response = await _client.GetAsync("/api/MegaSena/concursos?quantidade=10");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-}
 
+    [Fact]
+    public async Task Probabilidade_ComTaxaRetorno_DeveTrazerRetornoEsperado()
+    {
+        var factory = new CustomWebApplicationFactory().WithWebHostBuilder(b =>
+            b.ConfigureTestServices(s =>
+            {
+                var provider = new FakeRetornoProvider(0.45m);
+                s.RemoveAll<IRetornoHistoricoProvider>();
+                s.AddSingleton<IRetornoHistoricoProvider>(provider);
+            }));
+        var client = factory.CreateClient();
+
+        var resp = await client.GetAsync("/api/MegaSena/probabilidade?dezenas=6");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync()).RootElement;
+        Assert.False(json.GetProperty("retornoEsperado").ValueKind == JsonValueKind.Null);
+    }
+
+    private sealed class FakeRetornoProvider : IRetornoHistoricoProvider
+    {
+        public FakeRetornoProvider(decimal taxa) => Atual = new TaxaRetorno(taxa, 100, DateTime.UtcNow);
+        public TaxaRetorno? Atual { get; }
+        public void Atualizar(TaxaRetorno taxa) { }
+    }
+}

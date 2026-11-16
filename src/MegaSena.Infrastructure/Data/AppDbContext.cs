@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Perfil> Perfis { get; set; }
     public DbSet<Concurso> Concursos { get; set; }
     public DbSet<MensagemContato> MensagensContato { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -43,6 +44,22 @@ public class AppDbContext : DbContext
             // SEÇÃO 3.2: Índice único para o e-mail
             entity.Property(e => e.Email).HasMaxLength(150); // nvarchar(max) não pode ser chave de índice
             entity.HasIndex(e => e.Email).IsUnique().HasFilter("[Email] IS NOT NULL"); // vários NULL permitidos
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshToken");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.CarimboSenha).HasMaxLength(16).IsRequired();
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasIndex(e => e.FamiliaId);
+            entity.HasIndex(e => e.UsuarioId);
+            entity.Property(e => e.CriadoEmUtc).HasColumnType("datetime2");
+            entity.Property(e => e.ExpiraEmUtc).HasColumnType("datetime2");
+            entity.Property(e => e.UsadoEmUtc).HasColumnType("datetime2").IsConcurrencyToken(); // só um pedido consome o token
+            entity.Property(e => e.RevogadoEmUtc).HasColumnType("datetime2");
+            entity.HasOne<Usuario>().WithMany().HasForeignKey(e => e.UsuarioId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Perfil>(entity =>

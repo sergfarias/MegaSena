@@ -1,10 +1,7 @@
 {
-  "massaBola": 0.066,
-  "diametroBola": 0.050,
+  "diametroBola": 0.09,
   "raioGlobo": 0.45,
-  "rotacaoRpm": 30,
   "jatoAceleracao": 80.0,
-  "jatoAltura": 0.20,
   "turbulencia": 0.5,
   "restituicao": 0.7,
   "atrito": 0.02,

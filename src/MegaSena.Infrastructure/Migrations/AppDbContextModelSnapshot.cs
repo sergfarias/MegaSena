@@ -235,6 +235,53 @@ namespace MegaSena.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MegaSena.Infrastructure.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CarimboSenha")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime>("CriadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiraEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("FamiliaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("RevogadoEmUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("UsadoEmUtc")
+                        .IsConcurrencyToken()
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamiliaId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("RefreshToken", (string)null);
+                });
+
             modelBuilder.Entity("MegaSena.Infrastructure.Entities.Usuario", b =>
                 {
                     b.Property<Guid>("Id")
@@ -318,6 +365,15 @@ namespace MegaSena.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Jogo");
+                });
+
+            modelBuilder.Entity("MegaSena.Infrastructure.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("MegaSena.Infrastructure.Entities.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MegaSena.Infrastructure.Entities.Usuario", b =>

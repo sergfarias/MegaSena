@@ -32,6 +32,7 @@
         .ev-panel p { font-size: 0.95rem; color: #ccc; line-height: 1.5; }
         .custo-total { text-align: center; margin-bottom: 20px; font-size: 1.1rem; color: var(--success); font-weight: bold; }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
 
@@ -105,13 +106,7 @@
     </main>
 
     <script>
-        const API_URL = 'https://megasena-api.runasp.net';
-       
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('usuarioNome');
-            window.location.href = 'login.html';
-        }
+		// Testando LOCAL
 
         let debounceTimer;
 
@@ -133,10 +128,13 @@
                     
                     document.getElementById('custoTotal').innerText = `Custo: R$ ${data.custo.toFixed(2).replace('.', ',')}`;
 
-                    if (data.retornoPercentual !== null) {
-                        document.getElementById('retornoPercentual').innerText = `R$ ${data.retornoPercentual.toFixed(2).replace('.', ',')}`;
+                    if (data.retornoPercentual !== null && data.retornoPercentual !== undefined) 
+					{
+                        // O backend retorna a taxa (ex: 0.43), então multiplicamos por 100 para virar % ou exibimos como valor de R$ 0,43
+                        const valorReais = (data.retornoPercentual * 1).toFixed(2).replace('.', ',');
+                        document.getElementById('retornoPercentual').innerText = `R$ ${valorReais}`;
                     } else {
-                        document.getElementById('retornoPercentual').innerText = `R$ 0,00 (Dados indisponíveis)`;
+                        document.getElementById('retornoPercentual').innerText = `Aguardando dados...`;
                     }
 
                 } catch (error) {
@@ -166,5 +164,7 @@
             if (overlay) overlay.addEventListener('click', fecharMenu);
         })();
     </script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </body>
 </html>

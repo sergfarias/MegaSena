@@ -10,9 +10,7 @@ public class GeradorMock : IGeradorDeSorteio
 {
     public string Nome => "Mock";
     private readonly Func<Jogo> _geradorLogica;
-
     public GeradorMock(Func<Jogo> geradorLogica) => _geradorLogica = geradorLogica;
-
     public Jogo Sortear(Universo universo, IRegraDeJogo regra) => _geradorLogica();
 }
 
@@ -46,5 +44,30 @@ public class TestarUniformidadeUseCaseTests
         Assert.Equal(esperado, p, precision: 3);
     }
 
+
+   
+
+    [Fact]
+    public void Executar_ComUniversoNaoContiguo_NaoDeveLancarEDeveCalcularGlCorreto()
+    {
+        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11, 13, 15 });
+        var gerador = new GeradorMock(() => Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 }));
+
+        var r = new TestarUniformidadeUseCase().Executar(gerador, universo, n: 100);
+
+        Assert.Equal(universo.Tamanho - 1, r.GrausDeLiberdade); // gl = 7
+        Assert.True(double.IsFinite(r.QuiQuadrado));
+        Assert.True(r.QuiQuadrado > 0);
+    }
+
+    [Fact]
+    public void Executar_ComUniversoDe6Dezenas_DeveLancarArgumentException()
+    {
+        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11 });
+        var gerador = new GeradorMock(() => Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 }));
+
+        Assert.Throws<ArgumentException>(() =>
+            new TestarUniformidadeUseCase().Executar(gerador, universo, n: 100));
+    }
 }
 

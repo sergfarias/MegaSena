@@ -31,7 +31,8 @@ public sealed class GulosoCoberturaSolver : ICoberturaSolver
 
         var parallelOptions = new ParallelOptions
         {
-            CancellationToken = ct
+            CancellationToken = ct,
+            MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2)
         };
 
         try

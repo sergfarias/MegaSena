@@ -10,6 +10,14 @@ public sealed class GeradorAleatorioRapido : IGeradorDeSorteio
 
     public Jogo Sortear(Universo universo, IRegraDeJogo regra)
     {
+        // TRAVA RÁPIDA: se a regra é de pares e o universo não tem nenhum jogo válido, 
+        // nem tenta rodar o loop de 10.000 vezes.
+        if (regra is MaximoParesConsecutivos maxRegra &&
+            ContadorDeJogosValidos.Contar(universo, maxRegra.Maximo) == 0)
+        {
+            throw new InvalidOperationException("Regra de jogo impossível para este universo.");
+        }
+
         var dezenas = universo.Dezenas.ToArray();
         var bolas = new int[dezenas.Length];
 

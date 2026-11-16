@@ -1,0 +1,44 @@
+From 1c381bb73dae5be3b8090648939aaea4cc4a94e0 Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 5/8] =?UTF-8?q?N1:=20invalida=20o=20cache=20de=20frequ?=
+ =?UTF-8?q?=C3=AAncias=20tamb=C3=A9m=20na=20grava=C3=A7=C3=A3o=20final=20d?=
+ =?UTF-8?q?o=20importador?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../Services/ImportadorConcursosService.cs               | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs b/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
+index f60e46b..5784b2a 100644
+--- a/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
++++ b/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
+@@ -114,12 +114,8 @@ public class ImportadorConcursosService : BackgroundService
+             // Salva a cada 50 concursos. Erro de banco sobe para o ExecuteAsync (retry curto).
+             if (lote.Count >= tamanhoLote)
+             {
+-                if (lote.Count > 0)
+-                {
+-                    await repo.AdicionarVariosAsync(lote);
+-                    _log.LogInformation("Salvos os últimos {Qtd} concursos no banco.", lote.Count);
+-                    _cache.Remove("freq-dezenas"); 
+-                }
++                await repo.AdicionarVariosAsync(lote);
++                _cache.Remove("freq-dezenas");
+                 _log.LogInformation("Salvos {Qtd} concursos no banco.", lote.Count);
+                 lote.Clear();
+             }
+@@ -128,6 +124,7 @@ public class ImportadorConcursosService : BackgroundService
+         if (lote.Count > 0)
+         {
+             await repo.AdicionarVariosAsync(lote);
++            _cache.Remove("freq-dezenas"); // o caso comum é 1 concurso novo, que cai aqui
+             _log.LogInformation("Salvos os últimos {Qtd} concursos no banco.", lote.Count);
+         }
+ 
+-- 
+2.43.0
+

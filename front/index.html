@@ -308,6 +308,7 @@
             .card:hover, .card:focus-visible { transform: none; }
         }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
 
@@ -428,9 +429,7 @@
     </footer>
 
     <script>
-	    //const API_URL = 'https://localhost:7155';
-		const API_URL = 'https://megasena-api.runasp.net';
-       
+
         async function carregarUltimoSorteio() {
             const container = document.getElementById('ultimoSorteio');
             const info = document.getElementById('infoSorteio');
@@ -468,5 +467,6 @@
 
         document.addEventListener('DOMContentLoaded', carregarUltimoSorteio);
     </script>
+    <script src="config.js"></script>
 </body>
 </html>

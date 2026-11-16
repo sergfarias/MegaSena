@@ -32,6 +32,7 @@
         .conclusao-panel h3 { color: var(--primary); margin-bottom: 10px; font-size: 1.2rem; }
         .conclusao-panel p { font-size: 1rem; color: #ccc; line-height: 1.5; }
     </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
 </head>
 <body>
 
@@ -94,13 +95,6 @@
     </main>
 
     <script>
-        const API_URL = 'https://megasena-api.runasp.net';
-        
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('usuarioNome');
-            window.location.href = 'login.html';
-        }
 
         let debounceTimer;
 
@@ -111,7 +105,7 @@
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(async () => {
                 try {
-                    const response = await fetch(`${API_URL}/api/MegaSena/comparar-estrategias?dezenas=${dezenas}`);
+                    const response = await apiFetch(`${API_URL}/api/MegaSena/comparar-estrategias?dezenas=${dezenas}`);
                     if (!response.ok) throw new Error("Erro ao comparar");
 
                     const data = await response.json();
@@ -153,5 +147,7 @@
             if (overlay) overlay.addEventListener('click', fecharMenu);
         })();
     </script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </body>
 </html>

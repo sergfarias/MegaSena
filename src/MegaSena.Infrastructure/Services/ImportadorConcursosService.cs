@@ -1,12 +1,14 @@
-ï»¿using MegaSena.Application.Models;
+using MegaSena.Application.Models;
 using MegaSena.Application.Portas;
 using MegaSena.Domain;
 using MegaSena.Domain.Calculadora;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Globalization; // <-- NecessÃ¡rio para o ParseExact
+using System.Globalization;
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Memory;
+using System.Text.RegularExpressions;
 
 namespace MegaSena.Infrastructure.Services;
 
@@ -15,18 +17,21 @@ public class ImportadorConcursosService : BackgroundService
     private const string UrlBase = "https://api.guidi.dev.br/loteria/megasena";
     private readonly IServiceScopeFactory _scopes;
     private readonly ILogger<ImportadorConcursosService> _log;
+    private readonly IMemoryCache _cache;
 
     public ImportadorConcursosService(
         IServiceScopeFactory scopes,
-        ILogger<ImportadorConcursosService> log)
+        ILogger<ImportadorConcursosService> log,
+        IMemoryCache cache)
     {
         _scopes = scopes;
         _log = log;
+        _cache = cache;
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        // Espera 10s na inicializaÃ§Ã£o
+        // Espera 10s na inicialização
         await Task.Delay(TimeSpan.FromSeconds(10), ct);
 
         while (!ct.IsCancellationRequested)
@@ -44,12 +49,12 @@ public class ImportadorConcursosService : BackgroundService
 
             // Se houve erro, tenta de novo em 15 minutos. Se deu tudo certo, espera 6 horas.
             var delay = houveErro ? TimeSpan.FromMinutes(15) : TimeSpan.FromHours(6);
-            _log.LogInformation("PrÃ³xima verificaÃ§Ã£o em {Delay}.", delay);
+            _log.LogInformation("Próxima verificação em {Delay}.", delay);
             await Task.Delay(delay, ct);
         }
     }
 
-    private async Task ImportarConcursosAsync(CancellationToken ct)
+    internal async Task ImportarConcursosAsync(CancellationToken ct)
     {
         using var scope = _scopes.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IConcursoRepository>();
@@ -60,7 +65,7 @@ public class ImportadorConcursosService : BackgroundService
         using var resp = await http.GetAsync($"{UrlBase}/ultimo", ct);
         if (!resp.IsSuccessStatusCode)
         {
-            _log.LogWarning("API externa indisponÃ­vel.");
+            _log.LogWarning("API externa indisponível.");
             return;
         }
 
@@ -68,21 +73,23 @@ public class ImportadorConcursosService : BackgroundService
         using var doc = JsonDocument.Parse(json);
         var numeroUltimo = doc.RootElement.GetProperty("numero").GetInt32();
 
-        // NÃºmeros que faltam entre 1 e o Ãºltimo concurso (inclui buracos deixados por falhas anteriores)
+        // Números que faltam entre 1 e o último concurso (inclui buracos deixados por falhas anteriores)
         var faltantes = Enumerable.Range(1, numeroUltimo).Where(n => !existentes.Contains(n)).ToList();
 
         if (faltantes.Count == 0)
         {
-            _log.LogInformation("JÃ¡ temos todos os concursos atÃ© #{Numero}.", numeroUltimo);
+            _log.LogInformation("Já temos todos os concursos até #{Numero}.", numeroUltimo);
             return;
         }
 
-        _log.LogInformation("Importando {Qtd} concursos faltantes (de {Min} atÃ© {Max}).",
+        _log.LogInformation("Importando {Qtd} concursos faltantes (de {Min} até {Max}).",
             faltantes.Count, faltantes[0], faltantes[^1]);
 
         var lote = new List<ConcursoDto>();
         const int tamanhoLote = 50;
         int falhas = 0;
+        int falhasSeguidas = 0;
+        const int maxFalhasSeguidas = 10;
 
         foreach (var num in faltantes)
         {
@@ -101,16 +108,24 @@ public class ImportadorConcursosService : BackgroundService
 
             if (c == null)
             {
-                falhas++; // o buraco serÃ¡ refeito na prÃ³xima rodada
+                falhas++; // o buraco será refeito na próxima rodada
+                falhasSeguidas++;
+                if (falhasSeguidas >= maxFalhasSeguidas)
+                {
+                    _log.LogWarning("{N} falhas seguidas; interrompendo a rodada.", falhasSeguidas);
+                    break;
+                }
                 continue;
             }
 
+            falhasSeguidas = 0;
             lote.Add(c);
 
             // Salva a cada 50 concursos. Erro de banco sobe para o ExecuteAsync (retry curto).
             if (lote.Count >= tamanhoLote)
             {
                 await repo.AdicionarVariosAsync(lote);
+                _cache.Remove("freq-dezenas");
                 _log.LogInformation("Salvos {Qtd} concursos no banco.", lote.Count);
                 lote.Clear();
             }
@@ -119,14 +134,15 @@ public class ImportadorConcursosService : BackgroundService
         if (lote.Count > 0)
         {
             await repo.AdicionarVariosAsync(lote);
-            _log.LogInformation("Salvos os Ãºltimos {Qtd} concursos no banco.", lote.Count);
+            _cache.Remove("freq-dezenas");
+            _log.LogInformation("Salvos os últimos {Qtd} concursos no banco.", lote.Count);
         }
 
         await RodarQuiQuadradoAsync(repo, ct);
 
         // Sinaliza falha parcial para o retry curto (15 min) em vez de esperar 6 horas
         if (falhas > 0)
-            throw new InvalidOperationException($"{falhas} concurso(s) nÃ£o puderam ser importados.");
+            throw new InvalidOperationException($"{falhas} concurso(s) não puderam ser importados.");
     }
 
     private async Task RodarQuiQuadradoAsync(IConcursoRepository repo, CancellationToken ct)
@@ -136,7 +152,7 @@ public class ImportadorConcursosService : BackgroundService
             var todos = await repo.ObterTodosAsync();
             if (todos.Count < 50)
             {
-                _log.LogInformation("Ainda nÃ£o hÃ¡ concursos suficientes para o Qui-Quadrado ({Count}/50).", todos.Count);
+                _log.LogInformation("Ainda não há concursos suficientes para o Qui-Quadrado ({Count}/50).", todos.Count);
                 return;
             }
 
@@ -153,19 +169,19 @@ public class ImportadorConcursosService : BackgroundService
             var universo = Universo.Completo();
             var n = todos.Count;
 
-            // Usa a calculadora unificada (SeÃ§Ã£o 2.1)
-            double chi2 = CalculadoraQuiQuadrado.Calcular(freq, n, universo.Dezenas); 
+            // Usa a calculadora unificada (Seção 2.1)
+            double chi2 = CalculadoraQuiQuadrado.Calcular(freq, n, universo.Dezenas);
             int gl = universo.Tamanho - 1;
             double p = DistribuicaoQuiQuadrado.PValor(chi2, gl);
 
             _log.LogInformation(
-                "ðŸ“Š Qui-Quadrado com {N} concursos: Ï‡Â²={Chi2:F2}, gl={Gl}, p-valor={P:F4} ({Resultado})",
+                "?? Qui-Quadrado com {N} concursos: ?²={Chi2:F2}, gl={Gl}, p-valor={P:F4} ({Resultado})",
                 n, chi2, gl, p,
-                p >= 0.05 ? "âœ… Sem evidÃªncia de viÃ©s" : "âš ï¸ PossÃ­vel viÃ©s detectado");
+                p >= 0.05 ? "? Sem evidência de viés" : "?? Possível viés detectado");
         }
         catch (Exception ex)
         {
-            _log.LogWarning(ex, "Falha no pÃ³s-processamento (Qui-Quadrado).");
+            _log.LogWarning(ex, "Falha no pós-processamento (Qui-Quadrado).");
         }
     }
 
@@ -175,85 +191,105 @@ public class ImportadorConcursosService : BackgroundService
         if (!resp.IsSuccessStatusCode) return null;
 
         var json = await resp.Content.ReadAsStringAsync(ct);
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
         try
         {
-            var dataString = root.GetProperty("dataApuracao").GetString()!;
-            var dataSorteio = DateTime.ParseExact(dataString, "dd/MM/yyyy", CultureInfo.InvariantCulture);
-
-            DateTime? dataProximo = null;
-            if (root.TryGetProperty("dataProximoConcurso", out var dp) && dp.ValueKind == JsonValueKind.String)
-            {
-                var dpString = dp.GetString()!;
-                dataProximo = DateTime.ParseExact(dpString, "dd/MM/yyyy", CultureInfo.InvariantCulture);
-            }
-
-            var concurso = new ConcursoDto
-            {
-                NumeroConcurso = root.GetProperty("numero").GetInt32(),
-                DataHoraSorteio = dataSorteio,
-                CidadeSorteio = root.TryGetProperty("nomeMunicipioSorteio", out var cidade) ? cidade.GetString() : null,
-                UfSorteio = root.TryGetProperty("ufSorteio", out var uf) ? uf.GetString() : null,
-                DezenasSorteadas = string.Join(",", root.GetProperty("listaDezenas").EnumerateArray().Select(x => x.GetString()!)),
-                DezenasOrdemSorteio = root.TryGetProperty("dezenasSorteadasOrdemSorteio", out var ordem)
-                    ? string.Join(",", ordem.EnumerateArray().Select(x => x.GetString()!))
-                    : null,
-                ValorArrecadado = root.TryGetProperty("valorArrecadado", out var arr) ? arr.GetDecimal() : null,
-                Acumulado = root.TryGetProperty("acumulado", out var ac) && ac.GetBoolean(),
-                ValorAcumulado = root.TryGetProperty("valorAcumuladoConcursoEspecial", out var va) ? va.GetDecimal() : null,
-                DataProximoConcurso = dataProximo,
-                NumeroConcursoAnterior = root.TryGetProperty("numeroConcursoAnterior", out var ant) ? ant.GetInt32() : null,
-                ProximoConcurso = root.TryGetProperty("proximoConcurso", out var prox) ? prox.GetInt32() : null,
-                ListaRateioPremioJson = root.TryGetProperty("listaRateioPremio", out var rateio)
-                    ? rateio.GetRawText()
-                    : null
-            };
-
-            // =========================================================
-            // NOVO: Extrair os ganhadores e prÃªmios do JSON de rateio
-            // =========================================================
-            if (root.TryGetProperty("listaRateioPremio", out var rateioList) && rateioList.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var faixa in rateioList.EnumerateArray())
-                {
-                    if (!faixa.TryGetProperty("descricaoFaixa", out var descProp) || !faixa.TryGetProperty("numeroDeGanhadores", out var ganhadoresProp))
-                        continue;
-
-                    string descricao = descProp.GetString() ?? "";
-                    int ganhadores = ganhadoresProp.GetInt32();
-
-                    decimal valorPremio = 0;
-                    if (faixa.TryGetProperty("valorPremio", out var premioProp))
-                        valorPremio = premioProp.GetDecimal();
-
-                    // Mapeia para a faixa correta (baseado no padrÃ£o da API da Caixa)
-                    if (descricao.Contains("6", StringComparison.OrdinalIgnoreCase))
-                    {
-                        concurso.QtdGanhadoresSena = ganhadores;
-                        concurso.ValorPremioSena = valorPremio;
-                    }
-                    else if (descricao.Contains("5", StringComparison.OrdinalIgnoreCase))
-                    {
-                        concurso.QtdGanhadoresQuina = ganhadores;
-                        concurso.ValorPremioQuina = valorPremio;
-                    }
-                    else if (descricao.Contains("4", StringComparison.OrdinalIgnoreCase))
-                    {
-                        concurso.QtdGanhadoresQuadra = ganhadores;
-                        concurso.ValorPremioQuadra = valorPremio;
-                    }
-                }
-            }
-
-            return concurso;
+            return MapearConcurso(json);
         }
         catch (Exception ex)
         {
             _log.LogWarning("Erro ao mapear concurso #{Num}: {Msg}", numero, ex.Message);
             return null;
         }
+    }
+
+    /// <summary>Converte o JSON de um concurso da API externa. Lança exceção se faltar campo obrigatório.</summary>
+    public static ConcursoDto MapearConcurso(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        var dataString = root.GetProperty("dataApuracao").GetString()!;
+        var dataSorteio = DateTime.ParseExact(dataString, "dd/MM/yyyy", CultureInfo.InvariantCulture);
+
+        DateTime? dataProximo = null;
+        if (root.TryGetProperty("dataProximoConcurso", out var dp) && dp.ValueKind == JsonValueKind.String)
+        {
+            var dpString = dp.GetString()!;
+            dataProximo = DateTime.ParseExact(dpString, "dd/MM/yyyy", CultureInfo.InvariantCulture);
+        }
+
+        var concurso = new ConcursoDto
+        {
+            NumeroConcurso = root.GetProperty("numero").GetInt32(),
+            DataHoraSorteio = dataSorteio,
+            CidadeSorteio = root.TryGetProperty("nomeMunicipioSorteio", out var cidade) ? cidade.GetString() : null,
+            UfSorteio = root.TryGetProperty("ufSorteio", out var uf) ? uf.GetString() : null,
+            DezenasSorteadas = string.Join(",", root.GetProperty("listaDezenas").EnumerateArray().Select(x => x.GetString()!)),
+            DezenasOrdemSorteio = root.TryGetProperty("dezenasSorteadasOrdemSorteio", out var ordem)
+                ? string.Join(",", ordem.EnumerateArray().Select(x => x.GetString()!))
+                : null,
+
+            ValorArrecadado = LerDecimal(root, "valorArrecadado"),
+            ValorAcumulado = LerDecimal(root, "valorAcumuladoConcursoEspecial"),
+            NumeroConcursoAnterior = LerInt(root, "numeroConcursoAnterior"),
+            ProximoConcurso = LerInt(root, "proximoConcurso"),
+
+            Acumulado = root.TryGetProperty("acumulado", out var ac) && ac.ValueKind == JsonValueKind.True,
+            DataProximoConcurso = dataProximo,
+            ListaRateioPremioJson = root.TryGetProperty("listaRateioPremio", out var rateio)
+                ? rateio.GetRawText()
+                : null
+        };
+
+        // Ganhadores e prêmios por faixa
+        if (root.TryGetProperty("listaRateioPremio", out var rateioList) && rateioList.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var faixa in rateioList.EnumerateArray())
+            {
+                if (!faixa.TryGetProperty("descricaoFaixa", out var descProp) ||
+                    !faixa.TryGetProperty("numeroDeGanhadores", out var ganhadoresProp))
+                    continue;
+
+                string descricao = descProp.GetString() ?? "";
+                int ganhadores = ganhadoresProp.ValueKind == JsonValueKind.Number ? ganhadoresProp.GetInt32() : 0;
+
+                decimal valorPremio = 0;
+                if (faixa.TryGetProperty("valorPremio", out var premioProp) && premioProp.ValueKind == JsonValueKind.Number)
+                    valorPremio = premioProp.GetDecimal();
+
+                switch (FaixaDeAcertos(descricao))
+                {
+                    case 6:
+                        concurso.QtdGanhadoresSena = ganhadores;
+                        concurso.ValorPremioSena = valorPremio;
+                        break;
+                    case 5:
+                        concurso.QtdGanhadoresQuina = ganhadores;
+                        concurso.ValorPremioQuina = valorPremio;
+                        break;
+                    case 4:
+                        concurso.QtdGanhadoresQuadra = ganhadores;
+                        concurso.ValorPremioQuadra = valorPremio;
+                        break;
+                }
+            }
+        }
+
+        return concurso;
+    }
+
+    private static decimal? LerDecimal(JsonElement el, string nome) =>
+    el.TryGetProperty(nome, out var p) && p.ValueKind == JsonValueKind.Number
+        ? p.GetDecimal() : null;
+
+    private static int? LerInt(JsonElement el, string nome) =>
+        el.TryGetProperty(nome, out var p) && p.ValueKind == JsonValueKind.Number
+            ? p.GetInt32() : null;
+
+    private static int? FaixaDeAcertos(string descricao)
+    {
+        var m = Regex.Match(descricao, @"(?<!\d)([456])(?!\d)");
+        return m.Success ? int.Parse(m.Groups[1].Value) : null;
     }
 }
 

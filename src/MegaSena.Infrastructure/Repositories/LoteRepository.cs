@@ -1,9 +1,9 @@
-﻿using MegaSena.Application.Models;
+﻿
+using MegaSena.Application.Models;
 using MegaSena.Application.Portas;
 using MegaSena.Infrastructure.Data;
 using MegaSena.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace MegaSena.Infrastructure.Repositories;
 
@@ -16,7 +16,11 @@ public class LoteRepository : ILoteRepository
         _context = context;
     }
 
-    public async Task SalvarLoteAsync(Guid usuarioId, string hash, string jsonOriginal, IEnumerable<int[]> jogos)
+    public async Task SalvarLoteAsync(
+        Guid usuarioId,
+        string hash,
+        string jsonOriginal,
+        IEnumerable<int[]> jogos)
     {
         var novoJogo = new JogoEntity
         {
@@ -24,7 +28,8 @@ public class LoteRepository : ILoteRepository
             Hash = hash,
             JsonOriginal = jsonOriginal,
             DataCriacao = DateTime.UtcNow,
-            UsuarioId = usuarioId
+            UsuarioId = usuarioId,
+            Ativo = true
         };
 
         foreach (var jogoArray in jogos)
@@ -33,7 +38,8 @@ public class LoteRepository : ILoteRepository
             {
                 Id = Guid.NewGuid(),
                 Dezenas = string.Join(",", jogoArray.Select(d => d.ToString("00"))),
-                DataCriacao = DateTime.UtcNow
+                DataCriacao = DateTime.UtcNow,
+                Ativo = true
             });
         }
 
@@ -43,46 +49,75 @@ public class LoteRepository : ILoteRepository
 
     public async Task<(IEnumerable<int[]> Jogos, DateTime DataGeracao, string JsonOriginal)?> ObterLotePorHashAsync(string hash)
     {
-        var lote = await _context.Jogos.Include(j => j.Itens).FirstOrDefaultAsync(j => j.Hash == hash);
-        if (lote == null) return null;
+        var lote = await _context.Jogos
+            .AsNoTracking()
+            .Where(j => j.Hash == hash && j.Ativo)
+            .Select(j => new
+            {
+                j.DataCriacao,
+                j.JsonOriginal,
+                Itens = j.Itens
+                    .Where(i => i.Ativo)
+                    .Select(i => i.Dezenas)
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
 
-        var jogos = lote.Itens.Select(item => item.Dezenas.Split(',').Select(int.Parse).ToArray()).ToList();
+        if (lote == null)
+            return null;
 
-        // Retornamos o JsonOriginal salvo no banco
+        var jogos = lote.Itens
+            .Select(dezenas => dezenas.Split(',').Select(int.Parse).ToArray())
+            .ToList();
+
         return (jogos, lote.DataCriacao, lote.JsonOriginal);
     }
 
-    public async Task<(IEnumerable<int[]> Jogos, DateTime DataGeracao, string JsonOriginal)?> ObterLoteDoUsuarioPorHashAsync(Guid usuarioId, string hash)
+    public async Task<(IEnumerable<int[]> Jogos, DateTime DataGeracao, string JsonOriginal)?> ObterLoteDoUsuarioPorHashAsync(
+        Guid usuarioId,
+        string hash)
     {
-        // Uma única query: o filtro por UsuarioId garante a posse
         var lote = await _context.Jogos
             .AsNoTracking()
-            .Include(j => j.Itens)
-            .FirstOrDefaultAsync(j => j.Hash == hash && j.UsuarioId == usuarioId);
-        if (lote == null) return null;
+            .Where(j => j.Hash == hash
+                     && j.UsuarioId == usuarioId
+                     && j.Ativo)
+            .Select(j => new
+            {
+                j.DataCriacao,
+                j.JsonOriginal,
+                Itens = j.Itens
+                    .Where(i => i.Ativo)
+                    .Select(i => i.Dezenas)
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
 
-        var jogos = lote.Itens.Select(item => item.Dezenas.Split(',').Select(int.Parse).ToArray()).ToList();
+        if (lote == null)
+            return null;
+
+        var jogos = lote.Itens
+            .Select(dezenas => dezenas.Split(',').Select(int.Parse).ToArray())
+            .ToList();
+
         return (jogos, lote.DataCriacao, lote.JsonOriginal);
     }
 
     public async Task<IEnumerable<LoteHistoricoModel>> ObterLotesPorUsuarioAsync(Guid usuarioId)
     {
-        // 1. Busca a Entidade no banco
-        var lotesDoBanco = await _context.Jogos
-            .Include(j => j.Itens)
-            .Where(j => j.UsuarioId == usuarioId)
+        return await _context.Jogos
+            .AsNoTracking()
+            .Where(j => j.UsuarioId == usuarioId && j.Ativo)
             .OrderByDescending(j => j.DataCriacao)
+            .Select(j => new LoteHistoricoModel
+            {
+                Id = j.Id,
+                Hash = j.Hash,
+                DataCriacao = j.DataCriacao,
+                Ativo = j.Ativo,
+                QuantidadeJogos = j.Itens.Count(i => i.Ativo),
+                JsonOriginal = string.Empty
+            })
             .ToListAsync();
-
-        // 2. Converte (Mapeia) de Entidade para o Model da Application
-        return lotesDoBanco.Select(l => new LoteHistoricoModel
-        {
-            Id = l.Id,
-            Hash = l.Hash,
-            DataCriacao = l.DataCriacao,
-            QuantidadeJogos = l.Itens.Count,
-            JsonOriginal = l.JsonOriginal
-        }).ToList();
     }
 }
-

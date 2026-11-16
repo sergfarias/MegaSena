@@ -1,0 +1,30 @@
+From e35d36e6d8f630c9afab8c273e5c1cfe7b04e1b4 Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 7/8] =?UTF-8?q?N2:=20reduz=20o=20n=20m=C3=A1ximo=20da=20un?=
+ =?UTF-8?q?iformidade=20(100=20no=20modo=20f=C3=ADsico,=2020.000=20no=20r?=
+ =?UTF-8?q?=C3=A1pido)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ src/MegaSena.Api/Controllers/EstatisticasController.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/MegaSena.Api/Controllers/EstatisticasController.cs b/src/MegaSena.Api/Controllers/EstatisticasController.cs
+index edd0925..9f91a05 100644
+--- a/src/MegaSena.Api/Controllers/EstatisticasController.cs
++++ b/src/MegaSena.Api/Controllers/EstatisticasController.cs
+@@ -83,7 +83,7 @@ public class EstatisticasController : ControllerBase
+     {
+         try
+         {
+-            int nMax = fisico ? 500 : 100_000;
++            int nMax = fisico ? 100 : 20_000;
+             if (n < 50 || n > nMax)
+                 return BadRequest(new ErroResponse($"n deve estar entre 50 e {nMax}."));
+ 
+-- 
+2.43.0
+

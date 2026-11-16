@@ -1,0 +1,82 @@
+From c4541d4f9690601222da6c4bb2ccf0bb08fc4cc0 Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 2/8] N15: guarda para universos de 6 dezenas ou menos e teste
+ com universo de 8 dezenas
+
+---
+ .../CasosDeUso/TestarUniformidadeUseCase.cs   |  3 +++
+ .../Calculadora/CalculadoraQuiQuadrado.cs     |  4 +++
+ .../TestarUniformidadeUseCaseTests.cs         | 25 ++++++++++++-------
+ 3 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs b/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs
+index f047471..1d224fc 100644
+--- a/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs
++++ b/src/MegaSena.Application/CasosDeUso/TestarUniformidadeUseCase.cs
+@@ -16,6 +16,9 @@ public sealed class TestarUniformidadeUseCase
+         regra ??= new RegraSemRestricao();
+         int N = universo.Tamanho;
+ 
++        if (N <= Jogo.DezenasPorJogo)
++            throw new ArgumentException("O universo precisa ter mais de 6 dezenas para o teste de uniformidade.");
++
+         double esperado = (double)n * Jogo.DezenasPorJogo / N;
+         if (esperado < 5)
+             throw new ArgumentException($"n muito pequeno: esperado por dezena = {esperado:F1} (mínimo 5).");
+diff --git a/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs b/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs
+index adf193e..01b6c5c 100644
+--- a/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs
++++ b/src/MegaSena.Domain/Calculadora/CalculadoraQuiQuadrado.cs
+@@ -11,6 +11,10 @@ public static class CalculadoraQuiQuadrado
+     {
+         int N = dezenasUniverso.Count;
+ 
++        // O fator (N-1)/(N-6) divide por zero com N = 6 (e fica negativo abaixo disso).
++        if (N <= Jogo.DezenasPorJogo)
++            throw new ArgumentException("O universo precisa ter mais de 6 dezenas.", nameof(dezenasUniverso));
++
+         // Quantidade esperada de vezes que cada dezena deveria sair
+         double esperado = (double)totalSorteios * Jogo.DezenasPorJogo / N;
+ 
+diff --git a/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs b/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs
+index cdcdd26..8923492 100644
+--- a/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs
++++ b/tests/MegaSena.Application.Tests/CasosDeUso/TestarUniformidadeUseCaseTests.cs
+@@ -50,17 +50,24 @@ public class TestarUniformidadeUseCaseTests
+     [Fact]
+     public void Executar_ComUniversoNaoContiguo_NaoDeveLancarEDeveCalcularGlCorreto()
+     {
+-        // Universo {1,3,5,7,9,11} — não contíguo, 6 dezenas
+-        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11 });
+-        var gerador = new GeradorMock(() =>
+-        {
+-            // Gera um jogo válido qualquer dentro do universo
+-            return Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 });
+-        });
++        // Universo não contíguo com 8 dezenas (precisa ter mais de 6)
++        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11, 13, 15 });
++        var gerador = new GeradorMock(() => Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 }));
+ 
+         var r = new TestarUniformidadeUseCase().Executar(gerador, universo, n: 100);
+ 
+-        Assert.Equal(universo.Tamanho - 1, r.GrausDeLiberdade); // gl = 5
+-        Assert.InRange(r.QuiQuadrado, 0, double.MaxValue);
++        Assert.Equal(universo.Tamanho - 1, r.GrausDeLiberdade); // gl = 7
++        Assert.True(double.IsFinite(r.QuiQuadrado));
++        Assert.True(r.QuiQuadrado > 0);
++    }
++
++    [Fact]
++    public void Executar_ComUniversoDe6Dezenas_DeveLancarArgumentException()
++    {
++        var universo = new Universo(new[] { 1, 3, 5, 7, 9, 11 });
++        var gerador = new GeradorMock(() => Jogo.DasDezenas(new[] { 1, 3, 5, 7, 9, 11 }));
++
++        Assert.Throws<ArgumentException>(() =>
++            new TestarUniformidadeUseCase().Executar(gerador, universo, n: 100));
+     }
+ }
+-- 
+2.43.0
+

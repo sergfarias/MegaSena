@@ -1,0 +1,123 @@
+From f9866f2f60c42456de066018fcd5bc27eba92347 Mon Sep 17 00:00:00 2001
+From: analise <a@b.c>
+Date: Thu, 12 Nov 2026 12:10:53 +0000
+Subject: [PATCH 6/8] =?UTF-8?q?N4:=20importador=20checa=20tipos=20do=20JSO?=
+ =?UTF-8?q?N,=20interrompe=20ap=C3=B3s=20falhas=20seguidas=20e=20identific?=
+ =?UTF-8?q?a=20a=20faixa=20por=20regex?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../Services/ImportadorConcursosService.cs    | 52 +++++++++++++------
+ 1 file changed, 35 insertions(+), 17 deletions(-)
+
+diff --git a/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs b/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
+index 5784b2a..638b42a 100644
+--- a/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
++++ b/src/MegaSena.Infrastructure/Services/ImportadorConcursosService.cs
+@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
+ using Microsoft.Extensions.Logging;
+ using System.Globalization; 
+ using System.Text.Json;
++using System.Text.RegularExpressions;
+ using Microsoft.Extensions.Caching.Memory; 
+ 
+ namespace MegaSena.Infrastructure.Services;
+@@ -87,6 +88,8 @@ public class ImportadorConcursosService : BackgroundService
+         var lote = new List<ConcursoDto>();
+         const int tamanhoLote = 50;
+         int falhas = 0;
++        int falhasSeguidas = 0;
++        const int maxFalhasSeguidas = 10;
+ 
+         foreach (var num in faltantes)
+         {
+@@ -106,9 +109,18 @@ public class ImportadorConcursosService : BackgroundService
+             if (c == null)
+             {
+                 falhas++; // o buraco será refeito na próxima rodada
++                falhasSeguidas++;
++
++                if (falhasSeguidas >= maxFalhasSeguidas)
++                {
++                    _log.LogWarning("{N} falhas seguidas; interrompendo a rodada (nova tentativa no retry curto).", falhasSeguidas);
++                    break;
++                }
++
+                 continue;
+             }
+ 
++            falhasSeguidas = 0;
+             lote.Add(c);
+ 
+             // Salva a cada 50 concursos. Erro de banco sobe para o ExecuteAsync (retry curto).
+@@ -212,7 +224,7 @@ public class ImportadorConcursosService : BackgroundService
+                 NumeroConcursoAnterior = LerInt(root, "numeroConcursoAnterior"),
+                 ProximoConcurso = LerInt(root, "proximoConcurso"),
+ 
+-                Acumulado = root.TryGetProperty("acumulado", out var ac) && ac.GetBoolean(),
++                Acumulado = root.TryGetProperty("acumulado", out var ac) && ac.ValueKind == JsonValueKind.True,
+                 DataProximoConcurso = dataProximo,
+                 ListaRateioPremioJson = root.TryGetProperty("listaRateioPremio", out var rateio)
+                     ? rateio.GetRawText()
+@@ -230,27 +242,27 @@ public class ImportadorConcursosService : BackgroundService
+                         continue;
+ 
+                     string descricao = descProp.GetString() ?? "";
+-                    int ganhadores = ganhadoresProp.GetInt32();
++                    int ganhadores = ganhadoresProp.ValueKind == JsonValueKind.Number ? ganhadoresProp.GetInt32() : 0;
+ 
+                     decimal valorPremio = 0;
+-                    if (faixa.TryGetProperty("valorPremio", out var premioProp))
++                    if (faixa.TryGetProperty("valorPremio", out var premioProp) && premioProp.ValueKind == JsonValueKind.Number)
+                         valorPremio = premioProp.GetDecimal();
+ 
+-                    // Mapeia para a faixa correta (baseado no padrão da API da Caixa)
+-                    if (descricao.Contains("6", StringComparison.OrdinalIgnoreCase))
+-                    {
+-                        concurso.QtdGanhadoresSena = ganhadores;
+-                        concurso.ValorPremioSena = valorPremio;
+-                    }
+-                    else if (descricao.Contains("5", StringComparison.OrdinalIgnoreCase))
++                    // Mapeia para a faixa pelo número de acertos na descrição (ex.: "6 acertos")
++                    switch (FaixaDeAcertos(descricao))
+                     {
+-                        concurso.QtdGanhadoresQuina = ganhadores;
+-                        concurso.ValorPremioQuina = valorPremio;
+-                    }
+-                    else if (descricao.Contains("4", StringComparison.OrdinalIgnoreCase))
+-                    {
+-                        concurso.QtdGanhadoresQuadra = ganhadores;
+-                        concurso.ValorPremioQuadra = valorPremio;
++                        case 6:
++                            concurso.QtdGanhadoresSena = ganhadores;
++                            concurso.ValorPremioSena = valorPremio;
++                            break;
++                        case 5:
++                            concurso.QtdGanhadoresQuina = ganhadores;
++                            concurso.ValorPremioQuina = valorPremio;
++                            break;
++                        case 4:
++                            concurso.QtdGanhadoresQuadra = ganhadores;
++                            concurso.ValorPremioQuadra = valorPremio;
++                            break;
+                     }
+                 }
+             }
+@@ -264,6 +276,12 @@ public class ImportadorConcursosService : BackgroundService
+         }
+     }
+ 
++    private static int? FaixaDeAcertos(string descricao)
++    {
++        var m = Regex.Match(descricao, @"(?<!\d)([456])(?!\d)");
++        return m.Success ? int.Parse(m.Groups[1].Value) : null;
++    }
++
+     private static decimal? LerDecimal(JsonElement el, string nome) =>
+     el.TryGetProperty(nome, out var p) && p.ValueKind == JsonValueKind.Number
+         ? p.GetDecimal() : null;
+-- 
+2.43.0
+
