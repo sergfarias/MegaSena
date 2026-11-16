@@ -171,6 +171,10 @@
         }
     </style>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>">
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+	
 </head>
 <body>
     <button class="btn-abrir" id="btnAbrirMenu" aria-label="Abrir menu">☰</button>
@@ -264,6 +268,8 @@
 
             } catch (error) {
                 alert("Erro ao carregar histórico. Verifique se a API está rodando.");
+				                console.error("Detalhes do erro:", error);
+
             }
         }
 
@@ -457,7 +463,6 @@
             if (overlay) overlay.addEventListener('click', fecharMenu);
         })();
     </script>
-    <script src="config.js"></script>
-    <script src="auth.js"></script>
+    
 </body>
 </html>
